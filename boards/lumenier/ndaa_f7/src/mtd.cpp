@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (C) 2022 Technology Innovation Institute. All rights reserved.
+ *   Copyright (C) 2020 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,29 +31,49 @@
  *
  ****************************************************************************/
 
-/****************************************************************************
- * Included Files
- ****************************************************************************/
+#include <nuttx/config.h>
+#include <board_config.h>
 
-#include <px4_platform_common/micro_hal.h>
+#include <nuttx/spi/spi.h>
+#include <px4_platform_common/px4_manifest.h>
+//                                                              KiB BS    nB
+static const px4_mft_device_t spi2 = {             // W25QxxxJV on FMUM native: 16K X 8, emulated as (512 Blocks of 32)
+	.bus_type = px4_mft_device_t::SPI,
+	.devid    = SPIDEV_FLASH(0)
+};
 
-#include "board_config.h"
+static const px4_mtd_entry_t w25_flash = {
+	.device = &spi2,
+	.npart = 1,
+	.partd = {
+		{
+			.type = MTD_PARAMETERS,
+			.path = "/fs/mtd_params",
+			.nblocks = (16384 / (1 << CONFIG_RAMTRON_EMULATE_SECTOR_SHIFT))
+		}
+	},
+};
 
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
+static const px4_mtd_manifest_t board_mtd_config = {
+	.nconfigs   = 1,
+	.entries = {
+		&w25_flash
+	}
+};
 
-#if defined(GPIO_OTGFS_VBUS) && \
-    (defined(CONFIG_BUILD_FLAT) || !defined(__PX4_NUTTX))
+static const px4_mft_entry_s mtd_mft = {
+	.type = MTD,
+	.pmft = (void *) &board_mtd_config,
+};
 
-/* Default implementation for POSIX and flat NUTTX if the VBUS pin exists */
-int board_read_VBUS_state(void)
+static const px4_mft_s mft = {
+	.nmft = 1,
+	.mfts = {
+		&mtd_mft
+	}
+};
+
+const px4_mft_s *board_get_manifest(void)
 {
-	return (px4_arch_gpioread(GPIO_OTGFS_VBUS) ? 0 : 1);
+	return &mft;
 }
-#else
-int board_read_VBUS_state(void)
-{
-	return 0;
-}
-#endif
