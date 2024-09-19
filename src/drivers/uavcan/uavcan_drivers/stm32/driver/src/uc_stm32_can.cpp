@@ -478,6 +478,10 @@ bool CanIface::waitMsrINakBitStateChange(bool target_state)
 	const unsigned Timeout = 2000000;
 #endif
 
+#ifdef UAVCAN_WAIT_MSR
+	Timeout = 2000000;
+#endif
+
 	for (unsigned wait_ack = 0; wait_ack < Timeout; wait_ack++) {
 		const bool state = (can_->MSR & bxcan::MSR_INAK) != 0;
 

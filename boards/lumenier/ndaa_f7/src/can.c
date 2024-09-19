@@ -139,4 +139,7 @@ int can_devinit(void)
 
 	return OK;
 }
+
+inline uint16_t board_get_can_interfaces(void) { return 0x3; }
+
 #endif /* CONFIG_CAN */

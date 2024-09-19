@@ -102,7 +102,8 @@
 
 #define SYSTEM_ADC_BASE STM32_ADC1_BASE
 
-#define UAVCAN_NUM_IFACES_RUNTIME 2
+#define UAVCAN_NUM_IFACES_RUNTIME 1
+#define UAVCAN_WAIT_MSR
 
 /* PWM
  */
@@ -149,8 +150,6 @@
 		PX4_ADC_GPIO,                     \
 		GPIO_CAN1_TX,                     \
 		GPIO_CAN1_RX,                     \
-		GPIO_CAN3_TX,                     \
-		GPIO_CAN3_RX,                     \
 		GPIO_VIDEO_PWR,			  \
 		GPIO_VIDEO_CAM,			  \
 		GPIO_TONE_ALARM_IDLE,	          \

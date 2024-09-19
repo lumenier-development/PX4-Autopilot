@@ -341,8 +341,8 @@
  */
 #define GPIO_CAN1_RX     GPIO_CAN1_RX_2     /* PB8  */
 #define GPIO_CAN1_TX     GPIO_CAN1_TX_2     /* PB9  */
-#define GPIO_CAN3_RX     GPIO_CAN3_RX_2     /* PB3 */
-#define GPIO_CAN3_TX     GPIO_CAN3_TX_2     /* PB4  */
+// #define GPIO_CAN3_RX     GPIO_CAN3_RX_2     /* PB3 */
+// #define GPIO_CAN3_TX     GPIO_CAN3_TX_2     /* PB4  */
 
 /* SPI
  * SPI1 is sensors1
