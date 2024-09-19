@@ -229,13 +229,6 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 
 #endif /* CONFIG_MMCSD */
 
-	ret = mcp23009_register_gpios(3, 0x25);
-
-	if (ret != OK) {
-		// led_on(LED_RED);
-		return ret;
-	}
-
 	/* Configure the HW based on the manifest */
 	px4_platform_configure();
 

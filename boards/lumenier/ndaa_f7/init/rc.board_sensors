@@ -13,7 +13,7 @@ icm42688p -R 4 -s start
 bmp280 -I start
 
 # External Compass
-qmc5883l -I -R 6 start
+# qmc5883l -I -R 6 start
 lis3mdl -I -R 6 start
 
 # Start OCD
