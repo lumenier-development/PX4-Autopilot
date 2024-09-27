@@ -56,7 +56,7 @@
  */
 
 constexpr io_timers_t io_timers[MAX_IO_TIMERS] = {
-	initIOTimer(Timer::Timer2, DMA{DMA::Index1, DMA::Stream1, DMA::Channel3}),
+	initIOTimer(Timer::Timer2, DMA{DMA::Index1, DMA::Stream7, DMA::Channel3}),
 	initIOTimer(Timer::Timer4, DMA{DMA::Index1, DMA::Stream6, DMA::Channel2}),
 	initIOTimer(Timer::Timer1),
 	initIOTimer(Timer::Timer3),
