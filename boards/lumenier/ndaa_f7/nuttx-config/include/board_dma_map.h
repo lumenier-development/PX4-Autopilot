@@ -79,22 +79,22 @@
 
 // DMA1 Channel/Stream Selections
 //--------------------------------------------//---------------------------//----------------
-//      DMAMAP_UART5_RX                       // DMA1, Stream 0, Channel 4    (TELEM2 RX)
-// 	DMAMAP_TIM2_UP    		      // DMA1, Stream 1, Channel 3    (DSHOT)
-//      DMAMAP_TIM3_UP    DMAMAP_TIM3_UP_0    // DMA1, Stream 2, Channel 5    (DSHOT)
-//      DMAMAP_UART7_RX                       // DMA1, Stream 3, Channel 5    (TELEM1 RX)
-// 	DMAMAP_SPI2_TX    DMAMAP_SPI2_TX_2    // DMA1, Stream 4, Channel 0    (SPI2 TX)
-//      DMAMAP_SPI3_TX    		      // DMA1, Stream 5, Channel 0    (SPI3 TX)
-//      DMAMAP_TIM4_UP                        // DMA1, Stream 6, Channel 2    (DSHOT)
-//      DMAMAP_UART5_TX   		      // DMA1, Stream 7, Channel 4    (RC Input - TX)
+//      DMAMAP_UART5_RX                       // DMA1, Stream 0, Channel 4    (TELEM RX)
+// 	DMAMAP_TIM2_UP    MOTORS 1-4	      // DMA1, Stream 1, Channel 3    (DSHOT)
+//      DMAMAP_TIM3_UP    MOTORS 11-12        // DMA1, Stream 2, Channel 5    (DSHOT)
+//      DMAMAP_UART7_RX                       // DMA1, Stream 3, Channel 5    (RC RX)
+// 	AVAILABLE			      // DMA1, Stream 4, Channel 0
+//      DMAMAP_SPI3_TX    		      // DMA1, Stream 5, Channel 0    (OSD TX)
+//      DMAMAP_TIM4_UP    MOTORS 5-8          // DMA1, Stream 6, Channel 2    (DSHOT)
+//      DMAMAP_UART5_TX   		      // DMA1, Stream 7, Channel 4    (TELEM TX)
 
 //  DMA2 Channel/Stream Selections
 //--------------------------------------------//---------------------------//----------------
-//      DMAMAP_SDMMC2                         // DMA2, Stream 0, Channel 11
-#define DMAMAP_USART6_RX  DMAMAP_USART6_RX_1  // DMA2, Stream 1, Channel 5    (PX4IO)
-#define DMAMAP_SPI1_RX    DMAMAP_SPI1_RX_2    // DMA2, Stream 2, Channel 3    (SPI sensors RX)
+#define DMAMAP_SPI1_RX    DMAMAP_SPI1_RX_1    // DMA2, Stream 0, Channel 3    (SPI sensors RX)
+//	AVAILABLE			      // DMA2, Stream 1, Channel 5
+#define DMAMAP_USART1_RX  DMAMAP_USART1_RX_1  // DMA2, Stream 2, Channel 4    (TELEM RADIO RX)
 #define DMAMAP_SPI1_TX    DMAMAP_SPI1_TX_1    // DMA2, Stream 3, Channel 3    (SPI sensors TX)
 //      AVAILABLE                             // DMA2, Stream 4
-//      DMAMAP_TIM1_UP    DMAMAP_TIM1_UP_1    // DMA2, Stream 5, Channel 6    (DSHOT - getTimerUpdateDMAMap)
+//      DMAMAP_TIM1_UP    MOTORS 9-10         // DMA2, Stream 5, Channel 6    (DSHOT)
 //      AVAILABLE                             // DMA2, Stream 6
-#define DMAMAP_USART6_TX  DMAMAP_USART6_TX_2  // DMA2, Stream 7, Channel 5    (PX4IO)
+//      DMAMAP_USART1_TX    		      // DMA2, Stream 7, Channel 5    (TELEM RADIO TX)

@@ -37,4 +37,4 @@ else
 fi
 
 ms5611 -s -b 1 start
-
+msp_osd start -d /dev/ttyS2
