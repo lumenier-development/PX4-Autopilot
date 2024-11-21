@@ -344,6 +344,11 @@ protected:
 	uint64_t _time_delayed_us{0}; // captures the imu sample on the delayed time horizon
 	uint64_t _time_latest_us{0}; // imu sample capturing the newest imu data
 
+	// Variables used by the initial filter alignment
+	bool _is_first_imu_sample{true};
+	AlphaFilter<Vector3f> _accel_lpf{0.1f};	///< filtered accelerometer measurement used to align tilt (m/s/s)
+	AlphaFilter<Vector3f> _gyro_lpf{0.1f};	///< filtered gyro measurement used for alignment excessive movement check (rad/sec)
+
 	OutputPredictor _output_predictor{};
 
 #if defined(CONFIG_EKF2_AIRSPEED)
