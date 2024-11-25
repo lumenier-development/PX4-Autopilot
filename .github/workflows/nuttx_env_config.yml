@@ -11,16 +11,19 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: px4io/px4-dev-nuttx-focal:2022-08-12
+    container: ghcr.io/px4/px4-dev:1.16.0-alpha2
     strategy:
       matrix:
         config: [
           px4_fmu-v5,
           ]
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
       with:
-        token: ${{secrets.ACCESS_TOKEN}}
+        fetch-depth: 0
+
+    - name: Git ownership workaround
+      run: git config --system --add safe.directory '*'
 
     - name: make ${{matrix.config}}
       env:

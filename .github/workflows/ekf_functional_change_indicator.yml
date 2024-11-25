@@ -1,21 +1,25 @@
 name: EKF Change Indicator
 
-on: pull_request
+on:
+  pull_request:
+    branches:
+    - '*'
 
 jobs:
   unit_tests:
     runs-on: ubuntu-latest
-    container: px4io/px4-dev-base-focal:2021-09-08
+    container: ghcr.io/px4/px4-dev:1.16.0-alpha2
     steps:
-    - uses: actions/checkout@v2.3.1
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
-    - name: checkout newest version of branch
-      run: |
-        git fetch origin pull/${{github.event.pull_request.number}}/head:${{github.head_ref}}
-        git checkout ${GITHUB_HEAD_REF}
+
+    - name: Git ownership workaround
+      run: git config --system --add safe.directory '*'
+
     - name: main test
       run: make tests TESTFILTER=EKF
+
     - name: Check if there is a functional change
       run: git diff --exit-code
       working-directory: src/modules/ekf2/test/change_indication
