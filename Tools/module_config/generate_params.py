@@ -293,13 +293,24 @@ Note that non-motor outputs might already be active in prearm state if COM_PREAR
 
 When set to -1 (default), the value depends on the function (see {:}).
 '''.format(param_prefix+'_FUNC${i}')
+
+        min_angle_description = \
+'''Minimum angle at minimum output value (when not disarmed).
+'''
+        max_angle_description = \
+'''Maxmimum angle at maximum output value (when not disarmed).
+'''
+        position_controller_description = \
+'''1 if servo is used for position control, otherwise 0.
+'''
         standard_params_array = [
             ( 'disarmed', 'Disarmed', 'DIS', disarmed_description ),
             ( 'min', 'Minimum', 'MIN', minimum_description ),
             ( 'max', 'Maximum', 'MAX', maximum_description ),
             ( 'failsafe', 'Failsafe', 'FAIL', failsafe_description ),
-            ( 'anglemin', 'Anglemin', 'MINA', failsafe_description ),
-            ( 'anglemax', 'Anglemax', 'MAXA', failsafe_description ),
+            ( 'anglemin', 'Anglemin', 'MINA', min_angle_description ),
+            ( 'anglemax', 'Anglemax', 'MAXA', max_angle_description ),
+            ( 'positionctrl', 'Positionctrl', 'PCTRL', position_controller_description ),
             ]
         for key, label, param_suffix, description in standard_params_array:
             if key in standard_params:

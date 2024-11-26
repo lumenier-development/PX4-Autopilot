@@ -26,6 +26,7 @@ actuator_output:
         failsafe: { min: 0, max: 1000 }
         anglemin: { min: -180, max: 180, default: -30}
         anglemax: { min: -180, max: 180, default: 30}
+        positionctrl: { min: 0, max: 1, default: 1}
       num_channels: 8
     - param_prefix: SIM_GZ_WH
       group_label: 'Wheels'

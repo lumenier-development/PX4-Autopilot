@@ -66,8 +66,17 @@ bool GZMixingInterfaceServo::updateOutputs(bool stop_motors, uint16_t outputs[MA
 			gz::msgs::Double servo_output;
 
 			double output_range = _mixing_output.maxValue(i) - _mixing_output.minValue(i);
-			double angular_range = _mixing_output.maxAngle(i) - _mixing_output.minAngle(i);
-			double output = math::radians((double)_mixing_output.minAngle(i) + (double)outputs[i] / output_range * angular_range);
+			double output;
+
+			if (_mixing_output.usePositionCtrl(i)) {
+				double angular_range = _mixing_output.maxAngle(i) - _mixing_output.minAngle(i);
+				output = math::radians((double)_mixing_output.minAngle(i) + (double)outputs[i] / output_range * angular_range);
+
+			} else {
+				// This is currently only used by the landmower
+				double half_range = output_range / 2.;
+				output = ((double)outputs[i] - half_range) / half_range;
+			}
 
 			// std::cout << "outputs[" << i << "]: " << outputs[i] << std::endl;
 			// std::cout << "  output: " << output << std::endl;

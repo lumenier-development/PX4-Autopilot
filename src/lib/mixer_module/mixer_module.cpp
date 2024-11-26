@@ -127,6 +127,8 @@ void MixingOutput::initParamHandles(const uint8_t instance_start)
 		_param_handles[i].angle_min = param_find(param_name);
 		snprintf(param_name, sizeof(param_name), "%s_%s%d", _param_prefix, "MAXA", i + instance_start);
 		_param_handles[i].angle_max = param_find(param_name);
+		snprintf(param_name, sizeof(param_name), "%s_%s%d", _param_prefix, "PCTRL", i + instance_start);
+		_param_handles[i].position_ctrl = param_find(param_name);
 	}
 
 	snprintf(param_name, sizeof(param_name), "%s_%s", _param_prefix, "REV");
@@ -198,6 +200,10 @@ void MixingOutput::updateParams()
 			int tmp = _angle_min[i];
 			_angle_min[i] = _angle_max[i];
 			_angle_max[i] = tmp;
+		}
+
+		if (_param_handles[i].position_ctrl != PARAM_INVALID && param_get(_param_handles[i].position_ctrl, &val) == 0) {
+			_position_ctrl[i] = val;
 		}
 
 		if (_param_handles[i].failsafe != PARAM_INVALID && param_get(_param_handles[i].failsafe, &val) == 0) {
