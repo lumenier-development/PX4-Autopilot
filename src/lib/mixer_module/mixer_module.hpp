@@ -174,6 +174,8 @@ public:
 	uint16_t &disarmedValue(int index) { return _disarmed_value[index]; }
 	uint16_t &minValue(int index) { return _min_value[index]; }
 	uint16_t &maxValue(int index) { return _max_value[index]; }
+	int &minAngle(int index) { return _angle_min[index]; }
+	int &maxAngle(int index) { return _angle_max[index]; }
 
 	param_t functionParamHandle(int index) const { return _param_handles[index].function; }
 	param_t disarmedParamHandle(int index) const { return _param_handles[index].disarmed; }
@@ -231,6 +233,8 @@ private:
 		param_t min{PARAM_INVALID};
 		param_t max{PARAM_INVALID};
 		param_t failsafe{PARAM_INVALID};
+		param_t angle_min{PARAM_INVALID};
+		param_t angle_max{PARAM_INVALID};
 	};
 
 	void lock() { do {} while (px4_sem_wait(&_lock) != 0); }
@@ -243,6 +247,8 @@ private:
 	uint16_t _min_value[MAX_ACTUATORS] {};
 	uint16_t _max_value[MAX_ACTUATORS] {};
 	uint16_t _current_output_value[MAX_ACTUATORS] {}; ///< current output values (reordered)
+	int _angle_min[MAX_ACTUATORS] {};
+	int _angle_max[MAX_ACTUATORS] {};
 	uint16_t _reverse_output_mask{0}; ///< reverses the interval [min, max] -> [max, min], NOT motor direction
 
 	enum class OutputLimitState {

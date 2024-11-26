@@ -123,6 +123,10 @@ void MixingOutput::initParamHandles(const uint8_t instance_start)
 		_param_handles[i].max = param_find(param_name);
 		snprintf(param_name, sizeof(param_name), "%s_%s%d", _param_prefix, "FAIL", i + instance_start);
 		_param_handles[i].failsafe = param_find(param_name);
+		snprintf(param_name, sizeof(param_name), "%s_%s%d", _param_prefix, "MINA", i + instance_start);
+		_param_handles[i].angle_min = param_find(param_name);
+		snprintf(param_name, sizeof(param_name), "%s_%s%d", _param_prefix, "MAXA", i + instance_start);
+		_param_handles[i].angle_max = param_find(param_name);
 	}
 
 	snprintf(param_name, sizeof(param_name), "%s_%s", _param_prefix, "REV");
@@ -180,6 +184,20 @@ void MixingOutput::updateParams()
 			uint16_t tmp = _min_value[i];
 			_min_value[i] = _max_value[i];
 			_max_value[i] = tmp;
+		}
+
+		if (_param_handles[i].angle_max != PARAM_INVALID && param_get(_param_handles[i].angle_max, &val) == 0) {
+			_angle_max[i] = val;
+		}
+
+		if (_param_handles[i].angle_min != PARAM_INVALID && param_get(_param_handles[i].angle_min, &val) == 0) {
+			_angle_min[i] = val;
+		}
+
+		if (_angle_min[i] > _angle_max[i]) {
+			int tmp = _angle_min[i];
+			_angle_min[i] = _angle_max[i];
+			_angle_max[i] = tmp;
 		}
 
 		if (_param_handles[i].failsafe != PARAM_INVALID && param_get(_param_handles[i].failsafe, &val) == 0) {

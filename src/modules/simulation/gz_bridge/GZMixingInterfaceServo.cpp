@@ -64,8 +64,11 @@ bool GZMixingInterfaceServo::updateOutputs(bool stop_motors, uint16_t outputs[MA
 	for (auto &servo_pub : _servos_pub) {
 		if (_mixing_output.isFunctionSet(i)) {
 			gz::msgs::Double servo_output;
-			///TODO: Normalize output data
-			double output = (outputs[i] - 500) / 500.0;
+
+			double output_range = _mixing_output.maxValue(i) - _mixing_output.minValue(i);
+			double angular_range = _mixing_output.maxAngle(i) - _mixing_output.minAngle(i);
+			double output = math::radians((double)_mixing_output.minAngle(i) + (double)outputs[i] / output_range * angular_range);
+
 			// std::cout << "outputs[" << i << "]: " << outputs[i] << std::endl;
 			// std::cout << "  output: " << output << std::endl;
 			servo_output.set_data(output);

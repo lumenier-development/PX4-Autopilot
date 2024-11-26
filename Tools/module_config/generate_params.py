@@ -298,12 +298,14 @@ When set to -1 (default), the value depends on the function (see {:}).
             ( 'min', 'Minimum', 'MIN', minimum_description ),
             ( 'max', 'Maximum', 'MAX', maximum_description ),
             ( 'failsafe', 'Failsafe', 'FAIL', failsafe_description ),
+            ( 'anglemin', 'Anglemin', 'MINA', failsafe_description ),
+            ( 'anglemax', 'Anglemax', 'MAXA', failsafe_description ),
             ]
         for key, label, param_suffix, description in standard_params_array:
             if key in standard_params:
 
                 # values must be in range of an uint16_t
-                if standard_params[key]['min'] < 0:
+                if standard_params[key]['min'] < 0 and key != "anglemin" and key != "anglemax":
                     raise Exception('minimum value for {:} expected >= 0 (got {:})'.format(key, standard_params[key]['min']))
                 if standard_params[key]['max'] >= 1<<16:
                     raise Exception('maximum value for {:} expected <= {:} (got {:})'.format(key, 1<<16, standard_params[key]['max']))
