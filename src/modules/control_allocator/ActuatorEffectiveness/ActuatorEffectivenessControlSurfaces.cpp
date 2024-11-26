@@ -150,8 +150,7 @@ void ActuatorEffectivenessControlSurfaces::updateParams()
 		}
 	}
 
-	delete _count;
-	count = nullptr
+	count = nullptr;
 }
 
 bool ActuatorEffectivenessControlSurfaces::addActuators(Configuration &configuration)
