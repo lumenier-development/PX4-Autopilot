@@ -101,7 +101,11 @@ jobs:
 
     - name: Upload logs to flight review
       if: always()
-      run: ./Tools/upload_log.py -q --description "${GITHUB_WORKFLOW} ${GITHUB_RUN_ID}" --feedback "${GITHUB_WORKFLOW} ${GITHUB_RUN_ID} ${GITHUB_REPOSITORY} ${GITHUB_REF}" --source CI ~/.ros/log/*/*.ulg
+      run: |
+        mkdir ~/.ros/log/log
+        touch ~/.ros/log/log/log.ulg
+        touch ~/.ros/log/*/*.ulg
+        ./Tools/upload_log.py -q --description "${GITHUB_WORKFLOW} ${GITHUB_RUN_ID}" --feedback "${GITHUB_WORKFLOW} ${GITHUB_RUN_ID} ${GITHUB_REPOSITORY} ${GITHUB_REF}" --source CI ~/.ros/log/*/*.ulg
 
     - name: Upload px4 binary
       if: failure()
