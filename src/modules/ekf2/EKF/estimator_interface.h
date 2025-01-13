@@ -42,7 +42,6 @@
 #ifndef EKF_ESTIMATOR_INTERFACE_H
 #define EKF_ESTIMATOR_INTERFACE_H
 
-#include "lat_lon_alt/lat_lon_alt.hpp"
 #if defined(MODULE_NAME)
 #include <px4_platform_common/log.h>
 # define ECL_INFO PX4_DEBUG
@@ -73,6 +72,7 @@
 #endif // CONFIG_EKF2_RANGE_FINDER
 
 #include <lib/atmosphere/atmosphere.h>
+#include <lib/lat_lon_alt/lat_lon_alt.hpp>
 #include <matrix/math.hpp>
 #include <mathlib/mathlib.h>
 #include <mathlib/math/filter/AlphaFilter.hpp>
@@ -240,7 +240,10 @@ public:
 	const matrix::Quatf &getQuaternion() const { return _output_predictor.getQuaternion(); }
 	float getUnaidedYaw() const { return _output_predictor.getUnaidedYaw(); }
 	Vector3f getVelocity() const { return _output_predictor.getVelocity(); }
-	const Vector3f &getVelocityDerivative() const { return _output_predictor.getVelocityDerivative(); }
+
+	// get the mean velocity derivative in earth frame since last reset (see `resetVelocityDerivativeAccumulation()`)
+	Vector3f getVelocityDerivative() const { return _output_predictor.getVelocityDerivative(); }
+	void resetVelocityDerivativeAccumulation() { return _output_predictor.resetVelocityDerivativeAccumulation(); }
 	float getVerticalPositionDerivative() const { return _output_predictor.getVerticalPositionDerivative(); }
 	Vector3f getPosition() const;
 	LatLonAlt getLatLonAlt() const { return _output_predictor.getLatLonAlt(); }

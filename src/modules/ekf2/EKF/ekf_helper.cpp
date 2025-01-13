@@ -345,7 +345,6 @@ void Ekf::get_ekf_ctrl_limits(float *vxy_max, float *vz_max, float *hagl_min, fl
 	// TODO : calculate visual odometry limits
 	const bool relying_on_rangefinder = isOnlyActiveSourceOfVerticalPositionAiding(_control_status.flags.rng_hgt);
 
-	// Keep within range sensor limit when using rangefinder as primary height source
 	if (relying_on_rangefinder) {
 		*hagl_min = rangefinder_hagl_min;
 		*hagl_max = rangefinder_hagl_max;
@@ -1129,6 +1128,21 @@ bool Ekf::measurementUpdate(VectorState &K, const VectorState &H, const float R,
 	// apply the state corrections
 	fuse(K, innovation);
 	return true;
+}
+
+void Ekf::resetAidSourceStatusZeroInnovation(estimator_aid_source1d_s &status) const
+{
+	status.time_last_fuse = _time_delayed_us;
+
+	status.innovation = 0.f;
+	status.innovation_filtered = 0.f;
+	status.innovation_variance = status.observation_variance;
+
+	status.test_ratio = 0.f;
+	status.test_ratio_filtered = 0.f;
+
+	status.innovation_rejected = false;
+	status.fused = true;
 }
 
 void Ekf::updateAidSourceStatus(estimator_aid_source1d_s &status, const uint64_t &timestamp_sample,
