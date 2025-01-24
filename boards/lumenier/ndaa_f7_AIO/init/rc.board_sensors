@@ -1,0 +1,20 @@
+#!/bin/sh
+#
+# PX4 FMUv5X specific board sensors init
+#------------------------------------------------------------------------------
+
+board_adc start
+
+# Internal SPI bus ICM42688p
+icm42688p -R 4 -s start
+
+# Onboard Baro
+# spl06 -I start
+bmp280 -I start
+
+# External Compass
+# qmc5883l -I -R 6 start
+lis3mdl -I -R 6 start
+
+# Start OCD
+atxxxx -s start
