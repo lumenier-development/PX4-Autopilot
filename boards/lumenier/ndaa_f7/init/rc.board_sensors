@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# PX4 FMUv5X specific board sensors init
+# PX4 NDAA F7 AIO specific board sensors init
 #------------------------------------------------------------------------------
 
 board_adc start

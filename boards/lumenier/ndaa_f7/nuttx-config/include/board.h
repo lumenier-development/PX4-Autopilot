@@ -1,5 +1,5 @@
 /************************************************************************************
- * nuttx-configs/px4_fmu-v5x/include/board.h
+ * nuttx-configs/ndaa_f7/include/board.h
  *
  *   Copyright (C) 2016-2019 Gregory Nutt. All rights reserved.
  *   Authors: David Sidrane <david_s5@nscdg.com>
@@ -455,4 +455,4 @@
 # define PROBE_MARK(n)
 #endif
 
-#endif  /*__NUTTX_CONFIG_PX4_FMU_V5X_INCLUDE_BOARD_H  */
+#endif  /*__NUTTX_CONFIG_LUM_NDAA_F7_INCLUDE_BOARD_H  */
