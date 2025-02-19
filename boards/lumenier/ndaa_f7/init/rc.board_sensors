@@ -15,6 +15,7 @@ bmp280 -I start
 # External Compass
 # qmc5883l -I -R 6 start
 lis3mdl -I -R 6 start
+ist8310 -I start
 
 # Start OCD
 atxxxx -s start
