@@ -3,6 +3,6 @@
 # PX4 Lumenier LUX F765 - NDAA specific defaults
 #------------------------------------------------------------------------------
 
-param set-default BAT1_A_CHANNEL 12
+param set-default BAT1_I_CHANNEL 12
 param set-default BAT1_V_CHANNEL 13
 param set-default BAT1_V_DIV     11.33
