@@ -310,6 +310,10 @@
 
 /* Alternate function pin selections ************************************************/
 
+#define GPIO_OTGFS_DM   GPIO_OTGFS_DM_0
+#define GPIO_OTGFS_DP 	GPIO_OTGFS_DP_0
+#define GPIO_OTGFS_ID   GPIO_OTGFS_ID_0
+
 #define GPIO_USART1_RX   GPIO_USART1_RX_1    /* PA10 */
 #define GPIO_USART1_TX   GPIO_USART1_TX_1    /* PA9 */
 
@@ -331,13 +335,13 @@
 #define GPIO_UART7_RX    GPIO_UART7_RX_1    /* PE7  */
 #define GPIO_UART7_TX    GPIO_UART7_TX_1    /* PE8  */
 
-// #define GPIO_UART8_RX    GPIO_UART8_RX_0    /* PE0  */
-// #define GPIO_UART8_TX    GPIO_UART8_TX_0    /* PE1  */
+#define GPIO_UART8_RX    GPIO_UART8_RX_0    /* PE0  */
+#define GPIO_UART8_TX    GPIO_UART8_TX_0    /* PE1  */
 
 /* CAN
  *
  * CAN1 is routed to transceiver.
- * CAN3 is routed to transceiver.
+ * CAN3 is NOT routed to transceiver.
  */
 #define GPIO_CAN1_RX     GPIO_CAN1_RX_2     /* PB8  */
 #define GPIO_CAN1_TX     GPIO_CAN1_TX_2     /* PB9  */
@@ -374,6 +378,9 @@
 #define GPIO_SPI4_MISO   GPIO_SPI4_MISO_1   /* PE5  */
 #define GPIO_SPI4_MOSI   GPIO_SPI4_MOSI_1   /* PE6 */
 
+#define SDCARD_SPI_BUS   4
+#define FLASH_SPI_BUS    2
+
 /* I2C
  *
  *   The optional _GPIO configurations allow the I2C driver to manually
@@ -393,23 +400,6 @@
 
 #define GPIO_I2C3_SCL_GPIO                  (GPIO_OUTPUT | GPIO_OPENDRAIN | GPIO_SPEED_50MHz | GPIO_OUTPUT_SET | GPIO_PORTA | GPIO_PIN8)
 #define GPIO_I2C3_SDA_GPIO                  (GPIO_OUTPUT | GPIO_OPENDRAIN | GPIO_SPEED_50MHz | GPIO_OUTPUT_SET | GPIO_PORTC | GPIO_PIN9)
-
-/* SDMMC2
- *
- *      VDD 3.3
- *      GND
- *      SDMMC2_CK                           PD6
- *      SDMMC2_CMD                          PD7
- *      SDMMC2_D0                           PG9
- *      SDMMC2_D1                           PG10
- *      SDMMC2_D2                           PG11
- *      SDMMC2_D3                           PG12
- */
-
-// #define GPIO_SDMMC2_D0   GPIO_SDMMC2_D0_2
-// #define GPIO_SDMMC2_D1   GPIO_SDMMC2_D1_2
-// #define GPIO_SDMMC2_D2   GPIO_SDMMC2_D2_2
-// #define GPIO_SDMMC2_D3   GPIO_SDMMC2_D3_2
 
 /* USB
  *

@@ -36,8 +36,6 @@ add_library(drivers_board
 	i2c.cpp
 	init.cpp
 	led.c
-	mtd.cpp
-	sdio.c
 	spi.cpp
 	timer_config.cpp
 	usb.c

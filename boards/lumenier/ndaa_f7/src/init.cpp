@@ -34,7 +34,7 @@
 /**
  * @file init.c
  *
- * PX4FMU-specific early startup code.  This file implements the
+ * Lumenier LUX F765 - NDAA startup code.  This file implements the
  * board_app_initialize() function that is called early by nsh during startup.
  *
  * Code here is run before the rcS script is invoked; it should start required
@@ -217,20 +217,6 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 	if (board_hardfault_init(2, true) != 0) {
 		// led_on(LED_RED);
 	}
-
-	int ret = 0;
-#ifdef CONFIG_MMCSD
-	ret = stm32_sdio_initialize();
-
-	if (ret != OK) {
-		led_on(LED_RED);
-		return ret;
-	}
-
-#endif /* CONFIG_MMCSD */
-
-	/* Configure the HW based on the manifest */
-	px4_platform_configure();
 
 	return OK;
 }

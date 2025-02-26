@@ -34,7 +34,7 @@
 /**
  * @file board_config.h
  *
- * PX4FMU-v5 internal definitions
+ * Lumenier LUX F765 - NDAA internal definitions
  */
 
 #pragma once
@@ -66,11 +66,6 @@
 
 /* I2C busses */
 
-/* Devices on the onboard buses.
- *
- * Note that these are unshifted addresses.
- */
-
 /*
  * ADC channels
  *
@@ -83,10 +78,10 @@
 
 /* Define GPIO pins used as ADC N.B. Channel numbers must match below  */
 #define PX4_ADC_GPIO  \
-	/* PC0  */  GPIO_ADC1_IN10, \
-	/* PC1  */  GPIO_ADC1_IN11, \
-	/* PC2  */  GPIO_ADC1_IN12, \
-	/* PC3  */  GPIO_ADC1_IN13
+	/* PC0  */  GPIO_ADC1_IN10_0, \
+	/* PC1  */  GPIO_ADC1_IN11_0, \
+	/* PC2  */  GPIO_ADC1_IN12_0, \
+	/* PC3  */  GPIO_ADC1_IN13_0
 
 /* Define Channel numbers must match above GPIO pin IN(n)*/
 #define ADC_AIRSPEED_IN_CHANNEL         /* PC0  */  ADC1_CH(10)
@@ -114,7 +109,6 @@
 /* Spare GPIO */
 #define GPIO_VIDEO_PWR     /* PB2  */  (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_CLEAR|GPIO_PORTB|GPIO_PIN2)
 #define GPIO_VIDEO_CAM     /* PE10 */  (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_CLEAR|GPIO_PORTE|GPIO_PIN10)
-
 
 /* Tone alarm output */
 
@@ -178,16 +172,6 @@ __BEGIN_DECLS
 /****************************************************************************************************
  * Public Functions
  ****************************************************************************************************/
-
-/****************************************************************************
- * Name: stm32_sdio_initialize
- *
- * Description:
- *   Initialize SDIO-based MMC/SD card support
- *
- ****************************************************************************/
-
-int stm32_sdio_initialize(void);
 
 /****************************************************************************************************
  * Name: stm32_spiinitialize

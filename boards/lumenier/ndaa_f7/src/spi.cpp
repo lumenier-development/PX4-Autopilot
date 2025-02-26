@@ -77,7 +77,7 @@ static constexpr bool unused = validateSPIConfig(px4_spi_buses);
  * Name: stm32_spi_bus_initialize
  *
  * Description:
- *   Called to configure SPI buses on PX4FMU board.
+ *   Called to configure SPI buses on LUX F765 - NDAA board.
  *
  ************************************************************************************/
 static struct spi_dev_s *spi_expansion;
@@ -95,7 +95,7 @@ __EXPORT int stm32_spi_bus_initialize(void)
 
 	/* Configure MMCSD on SPI4 */
 	/* Get the external SPI port */
-	spi_expansion = stm32_spibus_initialize(4);
+	spi_expansion = stm32_spibus_initialize(SDCARD_SPI_BUS);
 
 	if (!spi_expansion) {
 		syslog(LOG_ERR, "[boot] FAILED to initialize SPI port %d\n", 1);
@@ -113,7 +113,7 @@ __EXPORT int stm32_spi_bus_initialize(void)
 	#endif
 
 	/* Configure Flash on SPI2 */
-	spi = stm32_spibus_initialize(2);
+	spi = stm32_spibus_initialize(FLASH_SPI_BUS);
 	if (!spi)
 	{
 		ferr("ERROR: Failed to initialize SPI port 2\n");
