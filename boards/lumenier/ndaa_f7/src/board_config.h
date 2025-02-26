@@ -97,6 +97,12 @@
 
 #define SYSTEM_ADC_BASE STM32_ADC1_BASE
 
+/* By Providing BOARD_ADC_USB_CONNECTED (using the px4_arch abstraction)
+ * this board support the ADC system_power interface, and therefore
+ * provides the true logic GPIO BOARD_ADC_xxxx macros.
+ */
+#define BOARD_ADC_USB_CONNECTED (px4_arch_gpioread(GPIO_OTGFS_VBUS))
+
 #define UAVCAN_NUM_IFACES_RUNTIME 1
 #define UAVCAN_WAIT_MSR
 

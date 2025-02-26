@@ -3,6 +3,7 @@
 # PX4 Lumenier LUX F765 - NDAA specific board sensors init
 #------------------------------------------------------------------------------
 
+# Start ADC driver
 board_adc start
 
 # Start OSD
