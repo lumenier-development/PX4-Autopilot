@@ -386,23 +386,6 @@
 #define GPIO_I2C3_SCL_GPIO                  (GPIO_OUTPUT | GPIO_OPENDRAIN | GPIO_SPEED_50MHz | GPIO_OUTPUT_SET | GPIO_PORTA | GPIO_PIN8)
 #define GPIO_I2C3_SDA_GPIO                  (GPIO_OUTPUT | GPIO_OPENDRAIN | GPIO_SPEED_50MHz | GPIO_OUTPUT_SET | GPIO_PORTC | GPIO_PIN9)
 
-/* SDMMC2
- *
- *      VDD 3.3
- *      GND
- *      SDMMC2_CK                           PD6
- *      SDMMC2_CMD                          PD7
- *      SDMMC2_D0                           PG9
- *      SDMMC2_D1                           PG10
- *      SDMMC2_D2                           PG11
- *      SDMMC2_D3                           PG12
- */
-
-// #define GPIO_SDMMC2_D0   GPIO_SDMMC2_D0_2
-// #define GPIO_SDMMC2_D1   GPIO_SDMMC2_D1_2
-// #define GPIO_SDMMC2_D2   GPIO_SDMMC2_D2_2
-// #define GPIO_SDMMC2_D3   GPIO_SDMMC2_D3_2
-
 /* USB
  *
  *      OTG_FS_DM                           PA11

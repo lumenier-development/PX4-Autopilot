@@ -96,6 +96,12 @@
 
 #define SYSTEM_ADC_BASE STM32_ADC1_BASE
 
+/* By Providing BOARD_ADC_USB_CONNECTED (using the px4_arch abstraction)
+ * this board support the ADC system_power interface, and therefore
+ * provides the true logic GPIO BOARD_ADC_xxxx macros.
+ */
+#define BOARD_ADC_USB_CONNECTED (px4_arch_gpioread(GPIO_OTGFS_VBUS))
+
 /* PWM
  */
 #define DIRECT_PWM_OUTPUT_CHANNELS   8
@@ -115,7 +121,6 @@
 /* This board provides a DMA pool and APIs */
 #define BOARD_DMA_ALLOC_POOL_SIZE 5120
 
-#define FLASH_BASED_PARAMS
 #define W25_BASED_PARAMS	"mnt/w25q/params"
 #define W25_BACKUP_PARAMS	"mnt/w25q/parameters_backup.bson"
 

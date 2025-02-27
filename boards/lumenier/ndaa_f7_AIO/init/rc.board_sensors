@@ -17,5 +17,5 @@ bmp280 -X start
 
 # External Compass
 # qmc5883l -I -R 6 start
-lis3mdl -X -R 6 start
+lis3mdl -X -q -R 6 start
 ist8310 -X -q start
