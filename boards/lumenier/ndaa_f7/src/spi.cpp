@@ -38,6 +38,7 @@
 #include <stdbool.h>
 #include <debug.h>
 #include <unistd.h>
+#include <cstdio>
 
 #include <nuttx/spi/spi.h>
 #include <nuttx/mtd/mtd.h>
@@ -53,8 +54,14 @@
 #include "board_config.h"
 
 #include <px4_arch/spi_hw_description.h>
+#include <arch/board/board.h>
+#include <px4_platform_common/log.h>
 #include <drivers/drv_sensor.h>
 #include <nuttx/spi/spi.h>
+
+#ifndef MODULE_NAME
+#define MODULE_NAME "spi_init"
+#endif
 
 constexpr px4_spi_bus_t px4_spi_buses[SPI_BUS_MAX_BUS_ITEMS] = {
 	initSPIBus(SPI::Bus::SPI1, {
@@ -87,7 +94,7 @@ __EXPORT int stm32_spi_bus_initialize(void)
 	struct spi_dev_s *spi;
 	struct mtd_dev_s *mtd;
 	int ret = OK;
-	#ifdef CONFIG_FS_NXFFS
+	#if defined(CONFIG_FS_NXFFS) || defined(CONFIG_FS_LITTLEFS)
 	char devname[12];
 	#endif
 
@@ -125,20 +132,12 @@ __EXPORT int stm32_spi_bus_initialize(void)
 	mtd = w25_initialize(spi);
 	if (!mtd)
 	{
-		ferr("ERROR: Failed to bind SPI port 2 to the SST 25 FLASH driver\n");
+		ferr("ERROR: Failed to bind SPI port 2 to the W25 FLASH driver\n");
 		return -ENODEV;
 	}
 
-	#ifndef CONFIG_FS_NXFFS
-		/* And use the FTL layer to wrap the MTD driver as a block driver */
 
-		ret = ftl_initialize(0, mtd);
-		if (ret < 0)
-		{
-			ferr("ERROR: Initialize the FTL layer\n");
-			return ret;
-		}
-	#else
+	#ifdef CONFIG_FS_NXFFS
 		/* Initialize to provide NXFFS on the MTD interface */
 
 		ret = nxffs_initialize(mtd);
@@ -158,6 +157,40 @@ __EXPORT int stm32_spi_bus_initialize(void)
 			return ret;
 		}
 
+	#elif defined(CONFIG_FS_LITTLEFS)
+		/* Initialize to provide LittleFS on the MTD interface */
+		/* Configure the device with no partition support */
+
+		snprintf(devname, sizeof(devname), "/dev/w25%s","lfs");
+
+		ret = register_mtddriver(devname, mtd, 0755, NULL);
+
+		if (ret != OK) {
+			PX4_ERR("register_mtddriver() failed: %d", ret);
+
+		} else {
+			ret = nx_mount(devname, "/mnt/w25q", "littlefs", 0, NULL);
+
+			if (ret < 0) {
+				ret = nx_mount(devname, "/mnt/w25q", "littlefs", 0,
+						"forceformat");
+
+				if (ret < 0) {
+					PX4_ERR("W25 mount failure: %d", ret);
+
+				} else {
+					PX4_INFO("W25 was forceformatted!");
+				}
+			}
+		}
+	#else
+		/* And use the FTL layer to wrap the MTD driver as a block driver */
+		ret = ftl_initialize(0, mtd);
+		if (ret < 0)
+		{
+			ferr("ERROR: Initialize the FTL layer\n");
+			return ret;
+		}
 	#endif
 
 	return OK;
