@@ -1,20 +1,21 @@
 #!/bin/sh
 #
-# PX4 NDAA F7 specific board sensors init
+# PX4 Lumenier LUX F765 - NDAA specific board sensors init
 #------------------------------------------------------------------------------
 
+# Start ADC driver
 board_adc start
+
+# Start OSD
+atxxxx -s start
 
 # Internal SPI bus ICM42688p
 icm42688p -R 4 -s start
 
 # Onboard Baro
-# spl06 -I start
-bmp280 -I start
+bmp280 -X start
 
 # External Compass
 # qmc5883l -I -R 6 start
-lis3mdl -I -R 6 start
-
-# Start OCD
-atxxxx -s start
+lis3mdl -X -R 6 start
+ist8310 -X -q start

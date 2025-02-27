@@ -53,8 +53,6 @@
  * Definitions
  ****************************************************************************************************/
 
-// #define FLASH_BASED_PARAMS
-
 /* LEDs are driven with push open drain to support Anode to 5V or 3.3V */
 
 #define GPIO_nLED_BLUE         /* PE4 */  (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz|GPIO_OUTPUT_SET|GPIO_PORTE|GPIO_PIN4)
@@ -138,6 +136,9 @@
 #define SDIO_MINOR                     0
 #define MMCSD_DETECT		/* PE3 */ (GPIO_INPUT|GPIO_FLOAT|GPIO_EXTI|GPIO_PORTE|GPIO_PIN3)
 #define GPIO_SDMMC1_NCD			MMCSD_DETECT
+
+#define W25_BASED_PARAMS	"mnt/w25q/params"
+#define W25_BACKUP_PARAMS	"mnt/w25q/parameters_backup.bson"
 
 /* This board provides a DMA pool and APIs */
 #define BOARD_DMA_ALLOC_POOL_SIZE 5120

@@ -38,7 +38,6 @@ add_library(drivers_board
 	spi.cpp
 	timer_config.cpp
 	usb.c
-	mtd.cpp
 )
 
 add_dependencies(drivers_board platform_gpio_mcp23009)

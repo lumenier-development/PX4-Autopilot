@@ -53,8 +53,6 @@
  * Definitions
  ****************************************************************************************************/
 
-// #define FLASH_BASED_PARAMS
-
 /* LEDs are driven with push open drain to support Anode to 5V or 3.3V */
 
 #define GPIO_nLED_BLUE         /* PE4 */  (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz|GPIO_OUTPUT_SET|GPIO_PORTE|GPIO_PIN4)
@@ -83,8 +81,8 @@
 
 /* Define GPIO pins used as ADC N.B. Channel numbers must match below  */
 #define PX4_ADC_GPIO  \
-	/* PC2  */  GPIO_ADC1_IN12, \
-	/* PC3  */  GPIO_ADC1_IN13
+	/* PC2  */  GPIO_ADC1_IN12_0, \
+	/* PC3  */  GPIO_ADC1_IN13_0
 
 /* Define Channel numbers must match above GPIO pin IN(n)*/
 // #define ADC_AIRSPEED_IN_CHANNEL         /* PC0  */  ADC1_CH(10)
@@ -117,6 +115,10 @@
 /* This board provides a DMA pool and APIs */
 #define BOARD_DMA_ALLOC_POOL_SIZE 5120
 
+#define FLASH_BASED_PARAMS
+#define W25_BASED_PARAMS	"mnt/w25q/params"
+#define W25_BACKUP_PARAMS	"mnt/w25q/parameters_backup.bson"
+
 /* This board provides the board_on_reset interface */
 
 #define BOARD_HAS_ON_RESET 1
@@ -133,8 +135,6 @@
 #define BOARD_ENABLE_CONSOLE_BUFFER
 
 #define BOARD_NUM_IO_TIMERS 4
-
-#define FLASH_BASED_PARAMS
 
 __BEGIN_DECLS
 

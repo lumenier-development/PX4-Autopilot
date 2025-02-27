@@ -310,6 +310,11 @@
 
 /* Alternate function pin selections ************************************************/
 
+#define GPIO_OTGFS_DM   GPIO_OTGFS_DM_0
+#define GPIO_OTGFS_DP 	GPIO_OTGFS_DP_0
+#define GPIO_OTGFS_ID   GPIO_OTGFS_ID_0
+#define GPIO_OTGFS_VBUS (GPIO_INPUT|GPIO_PULLDOWN|GPIO_SPEED_100MHz|GPIO_PORTD|GPIO_PIN7) /* PD7 */
+
 #define GPIO_USART1_RX   GPIO_USART1_RX_1    /* PA10 */
 #define GPIO_USART1_TX   GPIO_USART1_TX_1    /* PA9 */
 
@@ -331,8 +336,8 @@
 #define GPIO_UART7_RX    GPIO_UART7_RX_1    /* PE7  */
 #define GPIO_UART7_TX    GPIO_UART7_TX_1    /* PE8  */
 
-// #define GPIO_UART8_RX    GPIO_UART8_RX_0    /* PE0  */
-// #define GPIO_UART8_TX    GPIO_UART8_TX_0    /* PE1  */
+#define GPIO_UART8_RX    GPIO_UART8_RX_0    /* PE0  */
+#define GPIO_UART8_TX    GPIO_UART8_TX_0    /* PE1  */
 
 /* SPI
  * SPI1 is sensors1
@@ -358,6 +363,8 @@
 #define GPIO_SPI3_SCK    GPIO_SPI3_SCK_2    /* PC10  */
 #define GPIO_SPI3_MISO   GPIO_SPI3_MISO_2   /* PC11 */
 #define GPIO_SPI3_MOSI   GPIO_SPI3_MOSI_3   /* PC12  */
+
+#define FLASH_SPI_BUS    2
 
 /* I2C
  *

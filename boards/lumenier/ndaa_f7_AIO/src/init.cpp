@@ -56,7 +56,6 @@
 #include <nuttx/config.h>
 #include <nuttx/board.h>
 #include <nuttx/spi/spi.h>
-#include <nuttx/sdio.h>
 #include <nuttx/analog/adc.h>
 #include <nuttx/mm/gran.h>
 #include <chip.h>
@@ -196,6 +195,8 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 	/* Configure the Actual SPI interfaces (after we determined the HW version)  */
 
 	stm32_spiinitialize();
+
+	stm32_spi_bus_initialize();
 
 	board_spi_reset(10, 0xffff);
 
