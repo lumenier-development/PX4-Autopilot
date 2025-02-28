@@ -137,9 +137,6 @@
 #define MMCSD_DETECT		/* PE3 */ (GPIO_INPUT|GPIO_FLOAT|GPIO_EXTI|GPIO_PORTE|GPIO_PIN3)
 #define GPIO_SDMMC1_NCD			MMCSD_DETECT
 
-#define W25_BASED_PARAMS	"mnt/w25q/params"
-#define W25_BACKUP_PARAMS	"mnt/w25q/parameters_backup.bson"
-
 /* This board provides a DMA pool and APIs */
 #define BOARD_DMA_ALLOC_POOL_SIZE 5120
 

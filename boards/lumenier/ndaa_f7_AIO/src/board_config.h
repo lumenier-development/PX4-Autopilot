@@ -121,9 +121,6 @@
 /* This board provides a DMA pool and APIs */
 #define BOARD_DMA_ALLOC_POOL_SIZE 5120
 
-#define W25_BASED_PARAMS	"mnt/w25q/params"
-#define W25_BACKUP_PARAMS	"mnt/w25q/parameters_backup.bson"
-
 /* This board provides the board_on_reset interface */
 
 #define BOARD_HAS_ON_RESET 1

@@ -716,11 +716,9 @@ param_set_default_file(const char *filename)
 		return PX4_ERROR;
 	}
 
-#if defined(FLASH_BASED_PARAMS)
+#ifdef FLASH_BASED_PARAMS
 	// the default for flash-based params is always the FLASH
 	(void)filename;
-#elif defined(W25_BASED_PARAMS)
-	param_default_file = strdup(W25_BASED_PARAMS);
 #else
 
 	if (param_default_file != nullptr) {
@@ -756,16 +754,12 @@ int param_set_backup_file(const char *filename)
 		param_backup_file = nullptr;
 	}
 
-	#if defined(W25_BACKUP_PARAMS)
-		param_backup_file = strdup(W25_BACKUP_PARAMS);
-	#else
 	if (filename) {
 		param_backup_file = strdup(filename);
 
 	} else {
 		param_backup_file = nullptr; // backup disabled
 	}
-	#endif
 
 	return 0;
 }
