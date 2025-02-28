@@ -3,10 +3,8 @@
 # PX4 Lumenier LUX F765 - NDAA specific defaults
 #------------------------------------------------------------------------------
 
-param select-backup "/mnt/w25q/parameters_backup.bson"
-
 param set-default BAT1_I_CHANNEL 12
 param set-default BAT1_V_CHANNEL 13
 param set-default BAT1_V_DIV     11.33
 
-param save
+param select-backup "/mnt/w25q/parameters_backup.bson"
