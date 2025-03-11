@@ -1,0 +1,11 @@
+#!/bin/sh
+#
+# Lumenier H743 - NDAA specific board extras init
+#------------------------------------------------------------------------------
+
+# Start OSD
+atxxxx -s start
+
+# DShot telemetry is always on UART8
+dshot telemetry /dev/ttyS7
+

@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+# Lumenier H743 - NDAA specific board sensors init
+#------------------------------------------------------------------------------
+
+# Start ADC driver
+board_adc start
+
+# Internal SPI bus ICM42688p
+icm42688p -R 4 -s start
+
+# Internal SPI bus ICM45686
+icm45686 -s start
+
+# Onboard Baro
+dps310 -I -a 118 start
+
+# Internal Compass
+lis3mdl -I start

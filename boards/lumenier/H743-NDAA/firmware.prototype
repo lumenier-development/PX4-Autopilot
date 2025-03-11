@@ -1,0 +1,13 @@
+{
+    "board_id": 225,
+    "magic": "H743NDAA",
+    "description": "Firmware for the Lumenier H743 - NDAA flight controller.",
+    "image": "",
+    "build_time": 0,
+    "summary": "LMNRH743NDAA",
+    "version": "0.1",
+    "image_size": 0,
+    "image_maxsize": 1835008,
+    "git_identity": "",
+    "board_revision": 0
+}
