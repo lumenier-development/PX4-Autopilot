@@ -45,6 +45,7 @@ using namespace px4::logger;
 
 void LoggedTopics::add_default_topics()
 {
+	add_optional_topic("ackermann_velocity_setpoint", 100);
 	add_topic("action_request");
 	add_topic("actuator_armed");
 	add_optional_topic("actuator_controls_status_0", 300);
@@ -61,7 +62,8 @@ void LoggedTopics::add_default_topics()
 	add_optional_topic("external_ins_attitude");
 	add_optional_topic("external_ins_global_position");
 	add_optional_topic("external_ins_local_position");
-	add_optional_topic("esc_status", 250);
+	// add_optional_topic("esc_status", 250);
+	add_topic("esc_status");
 	add_topic("failure_detector_status", 100);
 	add_topic("failsafe_flags");
 	add_optional_topic("follow_target", 500);
@@ -99,12 +101,14 @@ void LoggedTopics::add_default_topics()
 	add_topic("parameter_update");
 	add_topic("position_controller_status", 500);
 	add_topic("position_controller_landing_status", 100);
+	add_optional_topic("pure_pursuit_status", 100);
 	add_topic("goto_setpoint", 200);
 	add_topic("position_setpoint_triplet", 200);
 	add_optional_topic("px4io_status");
 	add_topic("radio_status");
 	add_optional_topic("rover_attitude_setpoint", 100);
 	add_optional_topic("rover_attitude_status", 100);
+	add_optional_topic("rover_position_setpoint", 100);
 	add_optional_topic("rover_rate_setpoint", 100);
 	add_optional_topic("rover_rate_status", 100);
 	add_optional_topic("rover_steering_setpoint", 100);
