@@ -16,6 +16,6 @@ icm42688p -R 4 -s start
 bmp280 -X start
 
 # External Compass
-# qmc5883l -I -R 6 start
-lis3mdl -X -R 6 start
+lis3mdl -X start
 ist8310 -X -q start
+qmc5883l -X -q start
