@@ -16,4 +16,4 @@ icm45686 -s start
 dps310 -I -a 118 start
 
 # Internal Compass
-lis3mdl -I start
+lis2mdl -I start

@@ -3,8 +3,8 @@
 # PX4 Lumenier H743 - NDAA specific defaults
 #------------------------------------------------------------------------------
 
-param set-default BAT1_I_CHANNEL 12
-param set-default BAT1_V_CHANNEL 13
+param set-default BAT1_I_CHANNEL 11
+param set-default BAT1_V_CHANNEL 10
 param set-default BAT1_V_DIV     11.33
 
-param select-backup "/mnt/w25q/parameters_backup.bson"
+ # param select-backup "/mnt/w25q/parameters_backup.bson"
