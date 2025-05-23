@@ -173,6 +173,7 @@ __EXPORT int stm32_spi_bus_initialize(void)
 
 		} else {
 			ret = nx_mount(devname, "/mnt/w25q", "littlefs", 0, NULL);
+			PX4_INFO("W25 made it here!");
 
 			if (ret < 0) {
 				ret = nx_mount(devname, "/mnt/w25q", "littlefs", 0,
