@@ -98,7 +98,7 @@ __EXPORT int stm32_spi_bus_initialize(void)
 	struct mtd_dev_s *mtd;
 	int ret = OK;
 	#if defined(CONFIG_FS_NXFFS) || defined(CONFIG_FS_LITTLEFS)
-	char devname[12];
+		char devname[12];
 	#endif
 
 	/* Configure SPI-based devices */
@@ -126,7 +126,7 @@ __EXPORT int stm32_spi_bus_initialize(void)
 	spi = stm32_spibus_initialize(FLASH_SPI_BUS);
 	if (!spi)
 	{
-		ferr("ERROR: Failed to initialize SPI port 2\n");
+		ferr("ERROR: Failed to initialize SPI port 1\n");
 		return -ENODEV;
 	}
 
@@ -173,12 +173,10 @@ __EXPORT int stm32_spi_bus_initialize(void)
 
 		} else {
 			ret = nx_mount(devname, "/mnt/w25q", "littlefs", 0, NULL);
-			PX4_INFO("W25 made it here!");
 
 			if (ret < 0) {
 				ret = nx_mount(devname, "/mnt/w25q", "littlefs", 0,
 						"forceformat");
-
 				if (ret < 0) {
 					PX4_ERR("W25 mount failure: %d", ret);
 

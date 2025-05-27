@@ -68,6 +68,7 @@
 #include <drivers/drv_board_led.h>
 #include <systemlib/px4_macros.h>
 #include <px4_arch/io_timer.h>
+#include <px4_platform_common/log.h>
 #include <px4_platform_common/init.h>
 #include <px4_platform/gpio.h>
 #include <px4_platform/board_determine_hw_info.h>
@@ -77,6 +78,10 @@
 
 # if defined(FLASH_BASED_PARAMS)
 #  include <parameters/flashparams/flashfs.h>
+#endif
+
+#ifndef MODULE_NAME
+#define MODULE_NAME "app_init"
 #endif
 
 
@@ -153,7 +158,6 @@ stm32_boardinitialize(void)
 	board_autoled_initialize();
 
 	/* configure pins */
-
 	const uint32_t gpio[] = PX4_GPIO_INIT_LIST;
 	px4_gpio_init(gpio, arraySize(gpio));
 
@@ -210,11 +214,11 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 
 	/* initial LED state */
 	drv_led_start();
-	led_off(LED_RED);
+	led_off(LED_BLUE);
 
-	if (board_hardfault_init(2, true) != 0) {
-		led_on(LED_RED);
-	}
+	// if (board_hardfault_init(2, true) != 0) {
+		// led_on(LED_RED);
+	// }
 
 #if defined(FLASH_BASED_PARAMS)
 	static sector_descriptor_t params_sector_map[] = {

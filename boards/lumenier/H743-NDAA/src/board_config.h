@@ -116,8 +116,10 @@
 #define GPIO_TONE_ALARM_GPIO    /* PA8 */ (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_SET|GPIO_PORTA|GPIO_PIN8)
 
 /* High-resolution timer */
-#define HRT_TIMER               3  /* use timer3 for the HRT */
+#define HRT_TIMER               2  /* use timer2 for the HRT */
 #define HRT_TIMER_CHANNEL       1  /* use capture/compare channel 1 */
+#define HRT_PPM_CHANNEL         /* T2C3 */  3  /* use capture/compare channel 3 */
+#define GPIO_PPM_IN             /* PA2 T2C3 */ GPIO_TIM2_CH3IN_1
 
 #define BOARD_NUM_IO_TIMERS	3
 
