@@ -7,13 +7,13 @@
 board_adc start
 
 # Internal SPI bus ICM42688p
-icm42688p -R 4 -s start
+icm42688p -R 10 -s start
 
 # Internal SPI bus ICM45686
-icm45686 -s start
+icm45686 -R 8 -s start
 
 # Onboard Baro
 dps310 -I -a 118 start
 
 # Internal Compass
-lis2mdl -I start
+iis2mdc -R 8 -I start

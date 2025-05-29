@@ -216,9 +216,7 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 	drv_led_start();
 	led_off(LED_BLUE);
 
-	// if (board_hardfault_init(2, true) != 0) {
-		// led_on(LED_RED);
-	// }
+	board_hardfault_init(2, true);
 
 #if defined(FLASH_BASED_PARAMS)
 	static sector_descriptor_t params_sector_map[] = {
@@ -236,9 +234,10 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 
 #endif
 
-	/* Configure the HW based on the manifest */
-
-	px4_platform_configure();
+	/** Configure the HW based on the manifest
+	 * LUX H743 - NDAA does not have a manifest, so we do not call px4_platform_configure here.
+	 * px4_platform_configure();
+	*/
 
 	return OK;
 }
