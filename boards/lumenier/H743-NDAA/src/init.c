@@ -239,5 +239,6 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 	 * px4_platform_configure();
 	*/
 
+	stm32_i2c_sensors_initialize();
 	return OK;
 }

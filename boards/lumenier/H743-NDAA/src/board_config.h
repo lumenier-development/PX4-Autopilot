@@ -171,6 +171,8 @@ __BEGIN_DECLS
 
 extern void stm32_spiinitialize(void);
 
+extern int stm32_i2c_sensors_initialize(void);
+
 extern int stm32_spi_bus_initialize(void);
 
 extern void stm32_usbinitialize(void);

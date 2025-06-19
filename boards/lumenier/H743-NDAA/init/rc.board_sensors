@@ -16,4 +16,4 @@ icm45686 -R 8 -s start
 dps310 -I -a 118 start
 
 # Internal Compass
-iis2mdc -R 8 -I start
+iis2mdc -R 10 -I start
