@@ -340,13 +340,8 @@
 #define GPIO_UART8_TX    GPIO_UART8_TX_0    /* PE1  */
 
 /* SPI
- * SPI1 is sensors1
- * SPI2 is sensors2
- * SPI3 is sensors3
- * SPI4 is Not Used
- * SPI5 is FRAM
- * SPI6 is EXTERNAL1
- *
+ * SPI1 is ICM-42688-P
+ * SPI2 is FLASH
  */
 
 #define GPIO_SPI1_NSS    GPIO_SPI1_NSS_2    /* PA4  */
@@ -359,11 +354,6 @@
 #define GPIO_SPI2_MISO   GPIO_SPI2_MISO_1   /* PB14  */
 #define GPIO_SPI2_MOSI   GPIO_SPI2_MOSI_1   /* PB15  */
 
-#define GPIO_SPI3_NSS    GPIO_SPI3_NSS_1    /* PA15  */
-#define GPIO_SPI3_SCK    GPIO_SPI3_SCK_2    /* PC10  */
-#define GPIO_SPI3_MISO   GPIO_SPI3_MISO_2   /* PC11 */
-#define GPIO_SPI3_MOSI   GPIO_SPI3_MOSI_3   /* PC12  */
-
 #define FLASH_SPI_BUS    2
 
 /* I2C
@@ -373,13 +363,6 @@
  *   but are normally-high GPIOs.
  *
  */
-
-#define GPIO_I2C2_SCL GPIO_I2C2_SCL_1         /* PB10 */
-#define GPIO_I2C2_SDA GPIO_I2C2_SDA_1         /* PB11 */
-
-#define GPIO_I2C2_SCL_GPIO                  (GPIO_OUTPUT | GPIO_OPENDRAIN | GPIO_SPEED_50MHz | GPIO_OUTPUT_SET | GPIO_PORTB | GPIO_PIN10)
-#define GPIO_I2C2_SDA_GPIO                  (GPIO_OUTPUT | GPIO_OPENDRAIN | GPIO_SPEED_50MHz | GPIO_OUTPUT_SET | GPIO_PORTB | GPIO_PIN11)
-
 #define GPIO_I2C3_SCL GPIO_I2C3_SCL_1         /* PA8 */
 #define GPIO_I2C3_SDA GPIO_I2C3_SDA_1         /* PC9 */
 
@@ -393,6 +376,13 @@
  *      VBUS                                PA9
  */
 
+/* CAN
+*
+* CAN1 is NOT routed to transceiver.
+* CAN3 is routed to transceiver.
+*/
+#define GPIO_CAN3_RX     GPIO_CAN3_RX_2     /* PB3 */
+#define GPIO_CAN3_TX     GPIO_CAN3_TX_2     /* PB4 */
 
 /* Board provides GPIO or other Hardware for signaling to timing analyzer */
 

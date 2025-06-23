@@ -104,7 +104,7 @@
 
 /* PWM
  */
-#define DIRECT_PWM_OUTPUT_CHANNELS   8
+#define DIRECT_PWM_OUTPUT_CHANNELS   12
 
 #define BOARD_HAS_PWM  DIRECT_PWM_OUTPUT_CHANNELS
 
@@ -122,14 +122,15 @@
 #define BOARD_DMA_ALLOC_POOL_SIZE 5120
 
 /* This board provides the board_on_reset interface */
-
 #define BOARD_HAS_ON_RESET 1
+
+#define UAVCAN_NUM_IFACES_RUNTIME 1
 
 #define PX4_GPIO_INIT_LIST { \
 		PX4_ADC_GPIO,                     \
 		GPIO_VIDEO_CAM,			  \
-		PX4_MAKE_GPIO_OUTPUT_CLEAR(GPIO_I2C2_SCL), \
-		PX4_MAKE_GPIO_OUTPUT_CLEAR(GPIO_I2C2_SDA), \
+		GPIO_CAN3_TX,                     \
+		GPIO_CAN3_RX,                     \
 		PX4_MAKE_GPIO_OUTPUT_CLEAR(GPIO_I2C3_SCL), \
 		PX4_MAKE_GPIO_OUTPUT_CLEAR(GPIO_I2C3_SDA), \
 	}
