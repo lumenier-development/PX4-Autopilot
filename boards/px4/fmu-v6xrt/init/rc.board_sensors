@@ -83,10 +83,6 @@ else
 			i2c_launcher start -b 2
 		fi
 	fi
-<<<<<<< HEAD
-fi
-=======
->>>>>>> v1.16.0
 fi
 
 # Internal SPI bus ICM42686p (hard-mounted)

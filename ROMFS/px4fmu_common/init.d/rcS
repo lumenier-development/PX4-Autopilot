@@ -496,13 +496,6 @@ else
 	rc_input start $RC_INPUT_ARGS
 
 	# Manages USB interface
-<<<<<<< HEAD
-	if ! cdcacm_autostart start
-	then
-		sercon
-		echo "Starting MAVLink on /dev/ttyACM0"
-		mavlink start -d /dev/ttyACM0
-=======
 	if param greater -s SYS_USB_AUTO -1
 	then
 		if ! cdcacm_autostart start
@@ -511,7 +504,6 @@ else
 			echo "Starting MAVLink on /dev/ttyACM0"
 			mavlink start -d /dev/ttyACM0
 		fi
->>>>>>> v1.16.0
 	fi
 
 	#

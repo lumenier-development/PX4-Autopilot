@@ -1717,11 +1717,6 @@ void Commander::updateParameters()
 		_vehicle_status.system_type = value_int32;
 	}
 
-<<<<<<< HEAD
-	_vehicle_status.avoidance_system_required = _param_com_obs_avoid.get();
-
-=======
->>>>>>> v1.16.0
 	_auto_disarm_killed.set_hysteresis_time_from(false, _param_com_kill_disarm.get() * 1_s);
 
 	const bool is_rotary = is_rotary_wing(_vehicle_status) || (is_vtol(_vehicle_status)

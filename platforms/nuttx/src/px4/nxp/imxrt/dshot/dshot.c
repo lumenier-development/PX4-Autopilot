@@ -142,10 +142,6 @@ static inline void enable_timer_status_interrupts(uint32_t mask)
 
 static inline void disable_timer_status_interrupts(uint32_t mask)
 {
-<<<<<<< HEAD
-	uint32_t timer_compare = 0x2F00 | (((BOARD_FLEXIO_PREQ / (dshot_pwm_freq * 3) / 2) - 1) & 0xFF);
-
-=======
 	flexio_modifyreg32(IMXRT_FLEXIO_TIMIEN_OFFSET, mask, 0);
 }
 
@@ -230,7 +226,6 @@ static int flexio_irq_handler(int irq, void *context, void *arg)
 			}
 		}
 	}
->>>>>>> v1.16.0
 
 	flags = get_timer_status_flags();
 

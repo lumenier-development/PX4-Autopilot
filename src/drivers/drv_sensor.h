@@ -242,13 +242,10 @@
 
 #define DRV_DIFF_PRESS_DEVTYPE_ASP5033  0xE4
 
-<<<<<<< HEAD
-=======
 #define DRV_MAG_DEVTYPE_BMM350      	0xE5
 
 #define DRV_DIFF_PRESS_DEVTYPE_AUAV	0xE6
 #define DRV_BARO_DEVTYPE_AUAV		0xE7
->>>>>>> v1.16.0
 #define DRV_BARO_DEVTYPE_SPA06          0xE8
 
 #define DRV_DEVTYPE_UNUSED		0xff

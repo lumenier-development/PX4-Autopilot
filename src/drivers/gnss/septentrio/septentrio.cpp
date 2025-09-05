@@ -1154,36 +1154,6 @@ int SeptentrioDriver::process_message()
 
 				_message_gps_state.time_utc_usec = 0;
 #ifndef __PX4_QURT // NOTE: Functionality isn't available on Snapdragon yet.
-<<<<<<< HEAD
-				struct tm timeinfo;
-				time_t epoch;
-
-				// Convert to unix timestamp
-				memset(&timeinfo, 0, sizeof(timeinfo));
-
-				timeinfo.tm_year = 1980 - 1900;
-				timeinfo.tm_mon = 0;
-				timeinfo.tm_mday = 6 + header.wnc * 7;
-				timeinfo.tm_hour = 0;
-				timeinfo.tm_min = 0;
-				timeinfo.tm_sec = header.tow / 1000;
-
-				epoch = mktime(&timeinfo);
-
-				if (epoch > k_gps_epoch_secs) {
-					// FMUv2+ boards have a hardware RTC, but GPS helps us to configure it
-					// and control its drift. Since we rely on the HRT for our monotonic
-					// clock, updating it from time to time is safe.
-
-					timespec ts;
-					memset(&ts, 0, sizeof(ts));
-					ts.tv_sec = epoch;
-					ts.tv_nsec = (header.tow % 1000) * 1000 * 1000;
-					set_clock(ts);
-
-					_message_gps_state.time_utc_usec = static_cast<uint64_t>(epoch) * 1000000ULL;
-					_message_gps_state.time_utc_usec += (header.tow % 1000) * 1000;
-=======
 				if (_time_synced) {
 					struct tm timeinfo;
 					time_t epoch;
@@ -1214,7 +1184,6 @@ int SeptentrioDriver::process_message()
 						_message_gps_state.time_utc_usec = static_cast<uint64_t>(epoch) * 1000000ULL;
 						_message_gps_state.time_utc_usec += (header.tow % 1000) * 1000;
 					}
->>>>>>> v1.16.0
 				}
 
 #endif
@@ -1232,10 +1201,7 @@ int SeptentrioDriver::process_message()
 
 			if (_sbf_decoder.parse(&receiver_status) == PX4_OK) {
 				_message_gps_state.rtcm_msg_used = receiver_status.rx_state_diff_corr_in ? sensor_gps_s::RTCM_MSG_USED_USED : sensor_gps_s::RTCM_MSG_USED_NOT_USED;
-<<<<<<< HEAD
-=======
 				_time_synced = receiver_status.rx_state_wn_set && receiver_status.rx_state_tow_set;
->>>>>>> v1.16.0
 			}
 
 			break;
