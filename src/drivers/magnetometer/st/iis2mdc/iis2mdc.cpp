@@ -31,6 +31,13 @@
  *
  ****************************************************************************/
 
+<<<<<<< HEAD
+=======
+// NOTE: this part is functionality equivalent to the lis2mdl
+// https://www.st.com/resource/en/design_tip/dt0131-digital-magnetometer-and-ecompass-efficient-design-tips--stmicroelectronics.pdf
+// https://www.st.com/resource/en/datasheet/iis2mdc.pdf
+
+>>>>>>> v1.16.0
 #include "iis2mdc.h"
 
 using namespace time_literals;

@@ -51,6 +51,8 @@ bool GZMixingInterfaceWheel::init(const std::string &model_name)
 		return false;
 	}
 
+	pthread_mutex_init(&_node_mutex, nullptr);
+
 	_wheel_encoders_pub.advertise();
 
 	ScheduleNow();
@@ -78,8 +80,8 @@ bool GZMixingInterfaceWheel::updateOutputs(bool stop_wheels, uint16_t outputs[MA
 
 		for (unsigned i = 0; i < active_output_count; i++) {
 			// Offsetting the output allows for negative values despite unsigned integer to reverse the wheels
-			static constexpr float output_offset = 100.0f;
-			float scaled_output = (float)outputs[i] - output_offset;
+			static constexpr double output_offset = 100.0;
+			double scaled_output = (double)outputs[i] - output_offset;
 			wheel_velocity_message.set_velocity(i, scaled_output);
 		}
 

@@ -39,6 +39,11 @@
 
 #pragma once
 
+<<<<<<< HEAD
+=======
+#include <stdint.h>
+
+>>>>>>> v1.16.0
 namespace septentrio
 {
 
