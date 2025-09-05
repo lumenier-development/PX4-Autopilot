@@ -293,7 +293,9 @@ dshot <command> [arguments...]
    start
 
    telemetry     Enable Telemetry on a UART
-     <device>    UART device
+     -d <val>    UART device
+                 values: <device>
+     [-x]        Swap RX/TX pins
 
    reverse       Reverse motor direction
      [-m <val>]  Motor index (1-based, default=all)
@@ -324,9 +326,6 @@ dshot <command> [arguments...]
 
    beep5         Send Beep pattern 5
      [-m <val>]  Motor index (1-based, default=all)
-
-   esc_info      Request ESC information
-     -m <val>    Motor index (1-based)
 
    stop
 
@@ -837,6 +836,8 @@ msp_osd <command> [arguments...]
    stop
 
    status        print status info
+
+   channel       Change VTX channel
 ```
 
 ## newpixel
@@ -1159,6 +1160,30 @@ rgbled <command> [arguments...]
                  default: 57
      [-o <val>]  RGB PWM Assignment
                  default: 123
+
+   stop
+
+   status        print status info
+```
+
+## rgbled_aw2023
+
+Source: [drivers/lights/rgbled_aw2023](https://github.com/PX4/PX4-Autopilot/tree/main/src/drivers/lights/rgbled_aw2023)
+
+### Usage {#rgbled_aw2023_usage}
+
+```
+rgbled_aw2023 <command> [arguments...]
+ Commands:
+   start
+     [-I]        Internal I2C bus(es)
+     [-X]        External I2C bus(es)
+     [-b <val>]  board-specific bus (default=all) (external SPI: n-th bus
+                 (default=1))
+     [-f <val>]  bus frequency in kHz
+     [-q]        quiet startup (no message if no device found)
+     [-a <val>]  I2C address
+                 default: 69
 
    stop
 
