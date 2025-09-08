@@ -115,7 +115,6 @@
 #define HRT_TIMER               8  /* use timer8 for the HRT */
 #define HRT_TIMER_CHANNEL       3  /* use capture/compare channel 3 */
 
-#define HRT_PPM_CHANNEL         /* T8C1 */  1  /* use capture/compare channel 1 */
 #define GPIO_PPM_IN             /* PI5 T8C1 */ GPIO_TIM8_CH1IN_2
 
 /* This board provides a DMA pool and APIs */
@@ -125,12 +124,13 @@
 #define BOARD_HAS_ON_RESET 1
 
 #define UAVCAN_NUM_IFACES_RUNTIME 1
+#define UAVCAN_WAIT_MSR
 
 #define PX4_GPIO_INIT_LIST { \
 		PX4_ADC_GPIO,                     \
 		GPIO_VIDEO_CAM,			  \
-		GPIO_CAN3_TX,                     \
-		GPIO_CAN3_RX,                     \
+		GPIO_CAN1_TX,                     \
+		GPIO_CAN1_RX,                     \
 		PX4_MAKE_GPIO_OUTPUT_CLEAR(GPIO_I2C3_SCL), \
 		PX4_MAKE_GPIO_OUTPUT_CLEAR(GPIO_I2C3_SDA), \
 	}
@@ -138,6 +138,8 @@
 #define BOARD_ENABLE_CONSOLE_BUFFER
 
 #define BOARD_NUM_IO_TIMERS 4
+
+// #define FLASH_BASED_PARAMS
 
 __BEGIN_DECLS
 

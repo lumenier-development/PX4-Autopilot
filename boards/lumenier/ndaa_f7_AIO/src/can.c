@@ -43,10 +43,16 @@
 
 #include "board_config.h"
 
+
 __EXPORT
 uint16_t board_get_can_interfaces(void)
 {
-	uint16_t enabled_interfaces = 0x4;
+	uint16_t enabled_interfaces = 0x5;
+
+	if (!PX4_MFT_HW_SUPPORTED(PX4_MFT_CAN3)) {
+		enabled_interfaces &= ~(1 << 2);
+	}
+
 	return enabled_interfaces;
 }
 
@@ -70,12 +76,12 @@ uint16_t board_get_can_interfaces(void)
  ************************************************************************************/
 /* Configuration ********************************************************************/
 
-#if defined(CONFIG_STM32_CAN1) && defined(CONFIG_STM32_CAN2)
+#if defined(CONFIG_STM32F7_CAN1) && defined(CONFIG_STM32F7_CAN2)
 #  warning "Both CAN1 and CAN2 are enabled.  Assuming only CAN1."
-#  undef CONFIG_STM32_CAN2
+#  undef CONFIG_STM32F7_CAN2
 #endif
 
-#ifdef CONFIG_STM32_CAN1
+#ifdef CONFIG_STM32F7_CAN1
 #  define CAN_PORT 1
 #else
 #  define CAN_PORT 2
@@ -133,5 +139,7 @@ int can_devinit(void)
 
 	return OK;
 }
+
+inline uint16_t board_get_can_interfaces(void) { return 0x3; }
 
 #endif /* CONFIG_CAN */

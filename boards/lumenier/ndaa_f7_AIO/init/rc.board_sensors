@@ -6,9 +6,6 @@
 # Start ADC driver
 board_adc start
 
-# Start OSD
-atxxxx -s start
-
 # Internal SPI bus ICM42688p
 icm42688p -R 4 -s start
 

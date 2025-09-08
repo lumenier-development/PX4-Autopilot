@@ -12,9 +12,7 @@ param set-default COM_ARM_SDCARD 0
 # Don't try to log onto SD card
 param set-default SDLOG_MODE -1
 
-param select "/mnt/w25q/params"
 param select-backup "/mnt/w25q/parameters_backup.bson"
-param load
 
 param set-default BAT1_I_CHANNEL 12
 param set-default BAT1_V_CHANNEL 13

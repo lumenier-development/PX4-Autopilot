@@ -324,8 +324,8 @@
 #define GPIO_USART3_RX   GPIO_USART3_RX_3   /* PD9   */
 #define GPIO_USART3_TX   GPIO_USART3_TX_3   /* PD8   */
 
-#define GPIO_UART4_RX    GPIO_UART4_RX_4    /* PD0 */
-#define GPIO_UART4_TX    GPIO_UART4_TX_4    /* PD1 */
+#define GPIO_UART4_RX    GPIO_UART4_RX_2    /* PC10 */
+#define GPIO_UART4_TX    GPIO_UART4_TX_2    /* PC11 */
 
 #define GPIO_UART5_RX    GPIO_UART5_RX_1    /* PD2  */
 #define GPIO_UART5_TX    GPIO_UART5_TX_2    /* PB6  */
@@ -378,11 +378,10 @@
 
 /* CAN
 *
-* CAN1 is NOT routed to transceiver.
-* CAN3 is routed to transceiver.
+* CAN1 is routed to transceiver.
 */
-#define GPIO_CAN3_RX     GPIO_CAN3_RX_2     /* PB3 */
-#define GPIO_CAN3_TX     GPIO_CAN3_TX_2     /* PB4 */
+#define GPIO_CAN1_RX     GPIO_CAN1_RX_3     /* PD0 */
+#define GPIO_CAN1_TX     GPIO_CAN1_TX_3     /* PD1 */
 
 /* Board provides GPIO or other Hardware for signaling to timing analyzer */
 
