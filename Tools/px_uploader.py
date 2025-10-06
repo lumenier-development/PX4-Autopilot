@@ -189,7 +189,7 @@ class uploader:
     GET_CHIP        = b'\x2c'     # rev5+  , get chip version
     SET_BOOT_DELAY  = b'\x2d'     # rev5+  , set boot delay
     GET_CHIP_DES    = b'\x2e'     # rev5+  , get chip description in ASCII
-    GET_VERSION     = b'\x2f'     # rev5+  , get chip description in ASCII
+    GET_VERSION     = b'\x2f'     # rev5+  , get bootloader version in ASCII
     CHIP_FULL_ERASE = b'\x40'     # full erase of flash, rev6+
     MAX_DES_LENGTH  = 20
 
@@ -297,7 +297,7 @@ class uploader:
         if c != self.OK:
             raise RuntimeError("unexpected response 0x%x instead of OK" % ord(c))
 
-    # The control flow for reciving Sync is on the order of 16 Ms per Sync
+    # The control flow for receiving Sync is on the order of 16 Ms per Sync
     # This will validate all the SYNC,<results> for a window of programing
     # in about 13.81 Ms for 256 blocks written
     def __ackSyncWindow(self, count):
@@ -428,7 +428,8 @@ class uploader:
 
         percent = (float(progress) / float(maxVal)) * 100.0
 
-        sys.stdout.write("\r%s: [%-20s] %.1f%%" % (label, '='*int(percent/5.0), percent))
+        redraw = "\r" if sys.stdout.isatty() else "\n"
+        sys.stdout.write("%s%s: [%-20s] %.1f%%" % (redraw, label, '='*int(percent/5.0), percent))
         sys.stdout.flush()
 
     # send the CHIP_ERASE command and wait for the bootloader to become ready
@@ -708,7 +709,7 @@ class uploader:
                 # https://github.com/PX4/Firmware/blob/master/src/drivers/boards/common/stm32/board_mcu_version.c#L125-L144
 
                 if self.fw_maxsize > fw.property('image_maxsize') and not force:
-                    raise RuntimeError(f"Board can accept larger flash images ({self.fw_maxsize} bytes) than board config ({fw.property('image_maxsize')} bytes). Please use the correct board configuration to avoid lacking critical functionality.")
+                    print(f"WARNING: Board can accept larger flash images ({self.fw_maxsize} bytes) than board config ({fw.property('image_maxsize')} bytes)")
         else:
             # If we're still on bootloader v4 on a Pixhawk, we don't know if we
             # have the silicon errata and therefore need to flash px4_fmu-v2
