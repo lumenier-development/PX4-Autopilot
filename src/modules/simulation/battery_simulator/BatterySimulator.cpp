@@ -32,6 +32,9 @@
  ****************************************************************************/
 
 #include "BatterySimulator.hpp"
+#include <cmath>
+
+ModuleBase::Descriptor BatterySimulator::desc{task_spawn, custom_command, print_usage};
 
 BatterySimulator::BatterySimulator() :
 	ModuleParams(nullptr),
@@ -55,7 +58,7 @@ void BatterySimulator::Run()
 {
 	if (should_exit()) {
 		ScheduleClear();
-		exit_and_cleanup();
+		exit_and_cleanup(desc);
 		return;
 	}
 
@@ -70,8 +73,6 @@ void BatterySimulator::Run()
 		updateParams();
 	}
 
-	updateCommands();
-
 	if (_vehicle_status_sub.updated()) {
 		vehicle_status_s vehicle_status;
 
@@ -82,7 +83,8 @@ void BatterySimulator::Run()
 
 	const hrt_abstime now_us = hrt_absolute_time();
 
-	const float discharge_interval_us = _param_sim_bat_drain.get() * 1000 * 1000;
+	// Limit to +1.0 s to guard against division by 0
+	const float discharge_interval_us = math::max(_param_sim_bat_drain.get(), 1.0f) * 1000 * 1000;
 
 	if (_armed) {
 		if (_last_integration_us != 0) {
@@ -102,10 +104,6 @@ void BatterySimulator::Run()
 	float vbatt = math::interpolate(_battery_percentage, 0.f, 1.f, _battery.empty_cell_voltage(),
 					_battery.full_cell_voltage());
 
-	if (_force_empty_battery) {
-		vbatt = _battery.empty_cell_voltage();
-	}
-
 	vbatt *= _battery.cell_count();
 
 	_battery.setConnected(true);
@@ -116,67 +114,13 @@ void BatterySimulator::Run()
 	perf_end(_loop_perf);
 }
 
-void BatterySimulator::updateCommands()
-{
-	vehicle_command_s vehicle_command;
-
-	while (_vehicle_command_sub.update(&vehicle_command)) {
-		if (vehicle_command.command != vehicle_command_s::VEHICLE_CMD_INJECT_FAILURE) {
-			continue;
-		}
-
-		bool handled = false;
-		bool supported = false;
-
-		const int failure_unit = static_cast<int>(vehicle_command.param1 + 0.5f);
-		const int failure_type = static_cast<int>(vehicle_command.param2 + 0.5f);
-		const int instance = static_cast<int>(vehicle_command.param3 + 0.5f);
-
-		if (failure_unit == vehicle_command_s::FAILURE_UNIT_SYSTEM_BATTERY) {
-
-			if (failure_type == vehicle_command_s::FAILURE_TYPE_OK) {
-				handled = true;
-				PX4_INFO("CMD_INJECT_FAILURE, battery ok");
-				supported = false;
-
-				if (instance == 0) {
-					supported = true;
-					_force_empty_battery = false;
-				}
-
-			} else if (failure_type == vehicle_command_s::FAILURE_TYPE_OFF) {
-				// Force battery empty for FAILURE_TYPE_OFF - not perfectly accurate, but what we want to achieve
-				handled = true;
-				PX4_WARN("CMD_INJECT_FAILURE, battery empty");
-				supported = false;
-
-				if (instance == 0) {
-					supported = true;
-					_force_empty_battery = true;
-				}
-			}
-		}
-
-		if (handled) {
-			vehicle_command_ack_s ack{};
-			ack.command = vehicle_command.command;
-			ack.from_external = false;
-			ack.result = supported ?
-				     vehicle_command_ack_s::VEHICLE_CMD_RESULT_ACCEPTED :
-				     vehicle_command_ack_s::VEHICLE_CMD_RESULT_UNSUPPORTED;
-			ack.timestamp = hrt_absolute_time();
-			_command_ack_pub.publish(ack);
-		}
-	}
-}
-
 int BatterySimulator::task_spawn(int argc, char *argv[])
 {
 	BatterySimulator *instance = new BatterySimulator();
 
 	if (instance) {
-		_object.store(instance);
-		_task_id = task_id_is_work_queue;
+		desc.object.store(instance);
+		desc.task_id = task_id_is_work_queue;
 
 		if (instance->init()) {
 			return PX4_OK;
@@ -187,8 +131,8 @@ int BatterySimulator::task_spawn(int argc, char *argv[])
 	}
 
 	delete instance;
-	_object.store(nullptr);
-	_task_id = -1;
+	desc.object.store(nullptr);
+	desc.task_id = -1;
 
 	return PX4_ERROR;
 }
@@ -220,5 +164,5 @@ int BatterySimulator::print_usage(const char *reason)
 
 extern "C" __EXPORT int battery_simulator_main(int argc, char *argv[])
 {
-	return BatterySimulator::main(argc, argv);
+	return ModuleBase::main(BatterySimulator::desc, argc, argv);
 }

@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2022 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2022-2026 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,13 +33,15 @@
 
 #include "SagetechMXS.hpp"
 
+ModuleBase::Descriptor SagetechMXS::desc{task_spawn, custom_command, print_usage};
+
 /***************************************
  * Workqueue Functions
  * *************************************/
 
 extern "C" __EXPORT int sagetech_mxs_main(int argc, char *argv[])
 {
-	return SagetechMXS::main(argc, argv);
+	return ModuleBase::main(SagetechMXS::desc, argc, argv);
 }
 
 SagetechMXS::SagetechMXS(const char *port) :
@@ -90,8 +92,8 @@ int SagetechMXS::task_spawn(int argc, char *argv[])
 	}
 
 	if (instance) {
-		_object.store(instance);
-		_task_id = task_id_is_work_queue;
+		desc.object.store(instance);
+		desc.task_id = task_id_is_work_queue;
 
 		if (instance->init()) {
 			return PX4_OK;
@@ -99,8 +101,8 @@ int SagetechMXS::task_spawn(int argc, char *argv[])
 	}
 
 	delete instance;
-	_object.store(nullptr);
-	_task_id = -1;
+	desc.object.store(nullptr);
+	desc.task_id = -1;
 	return PX4_ERROR;
 }
 
@@ -137,7 +139,7 @@ int SagetechMXS::custom_command(int argc, char *argv[])
 {
 	const char *verb = argv[0];
 
-	if (!is_running()) {
+	if (!is_running(desc)) {
 		int ret = SagetechMXS::task_spawn(argc, argv);
 		return ret;
 
@@ -152,12 +154,12 @@ int SagetechMXS::custom_command(int argc, char *argv[])
 			return PX4_ERROR;
 		}
 
-		return get_instance()->handle_fid(fid);
+		return get_instance<SagetechMXS>(desc)->handle_fid(fid);
 	}
 
 	if (!strcmp(verb, "ident")) {
-		get_instance()->_adsb_ident.set(1);
-		return get_instance()->_adsb_ident.commit();
+		get_instance<SagetechMXS>(desc)->_adsb_ident.set(1);
+		return get_instance<SagetechMXS>(desc)->_adsb_ident.commit();
 	}
 
 	if (!strcmp(verb, "opmode")) {
@@ -168,20 +170,20 @@ int SagetechMXS::custom_command(int argc, char *argv[])
 			return PX4_ERROR;
 
 		} else if (!strcmp(opmode, "off") || !strcmp(opmode, "0")) {
-			get_instance()->_mxs_op_mode.set(0);
-			return get_instance()->_mxs_op_mode.commit();
+			get_instance<SagetechMXS>(desc)->_mxs_op_mode.set(0);
+			return get_instance<SagetechMXS>(desc)->_mxs_op_mode.commit();
 
 		} else if (!strcmp(opmode, "on") || !strcmp(opmode, "1")) {
-			get_instance()->_mxs_op_mode.set(1);
-			return get_instance()->_mxs_op_mode.commit();
+			get_instance<SagetechMXS>(desc)->_mxs_op_mode.set(1);
+			return get_instance<SagetechMXS>(desc)->_mxs_op_mode.commit();
 
 		} else if (!strcmp(opmode, "stby") || !strcmp(opmode, "2")) {
-			get_instance()->_mxs_op_mode.set(2);
-			return get_instance()->_mxs_op_mode.commit();
+			get_instance<SagetechMXS>(desc)->_mxs_op_mode.set(2);
+			return get_instance<SagetechMXS>(desc)->_mxs_op_mode.commit();
 
 		} else if (!strcmp(opmode, "alt") || !strcmp(opmode, "3")) {
-			get_instance()->_mxs_op_mode.set(3);
-			return get_instance()->_mxs_op_mode.commit();
+			get_instance<SagetechMXS>(desc)->_mxs_op_mode.set(3);
+			return get_instance<SagetechMXS>(desc)->_mxs_op_mode.commit();
 
 		} else {
 			print_usage("Invalid Op Mode");
@@ -200,13 +202,13 @@ int SagetechMXS::custom_command(int argc, char *argv[])
 
 		sqk = atoi(squawk);
 
-		if (!get_instance()->check_valid_squawk(sqk)) {
+		if (!get_instance<SagetechMXS>(desc)->check_valid_squawk(sqk)) {
 			print_usage("Invalid Squawk");
 			return PX4_ERROR;
 
 		} else {
-			get_instance()->_adsb_squawk.set(sqk);
-			return get_instance()->_adsb_squawk.commit();
+			get_instance<SagetechMXS>(desc)->_adsb_squawk.set(sqk);
+			return get_instance<SagetechMXS>(desc)->_adsb_squawk.commit();
 		}
 	}
 
@@ -274,7 +276,7 @@ void SagetechMXS::Run()
 	// Thread Stop
 	if (should_exit()) {
 		ScheduleClear();
-		exit_and_cleanup();
+		exit_and_cleanup(desc);
 		return;
 	}
 
@@ -300,10 +302,14 @@ void SagetechMXS::Run()
 		if (!_mxs_ext_cfg.get()) {
 			// Auto configuration
 			auto_config_operating();
-			auto_config_installation();
-			auto_config_flightid();
-			_mxs_op_mode.set(sg_op_mode_t::modeStby);
-			_mxs_op_mode.commit();
+
+			if (_adsb_icao.get() >= 0) {
+				auto_config_installation();
+				auto_config_flightid();
+				_mxs_op_mode.set(sg_op_mode_t::modeStby);
+				_mxs_op_mode.commit();
+			}
+
 			send_targetreq_msg();
 			mxs_state.initialized = true;
 		}
@@ -582,7 +588,6 @@ void SagetechMXS::handle_svr(sg_svr_t svr)
 
 	t.timestamp = hrt_absolute_time();
 	t.flags &= ~transponder_report_s::PX4_ADSB_FLAGS_VALID_SQUAWK;
-	t.flags |= transponder_report_s::PX4_ADSB_FLAGS_RETRANSLATE;
 
 	//Set data from svr message
 	if (svr.validity.position) {
@@ -643,7 +648,6 @@ void SagetechMXS::handle_msr(sg_msr_t msr)
 	}
 
 	t.timestamp = hrt_absolute_time();
-	t.flags |= transponder_report_s::PX4_ADSB_FLAGS_RETRANSLATE;
 
 	if (strlen(msr.callsign)) {
 		snprintf(t.callsign, sizeof(t.callsign), "%-8s", msr.callsign);
@@ -693,13 +697,19 @@ void SagetechMXS::send_data_req(const sg_datatype_t dataReqType)
 
 void SagetechMXS::send_install_msg()
 {
+	const int32_t adsb_icao = _adsb_icao.get();
+
+	if (adsb_icao < 0) {
+		return;
+	}
+
 	// MXS must be in OFF mode to change ICAO or Registration
 	if (mxs_state.op.opMode != modeOff) {
 		// gcs().send_text(MAV_SEVERITY_WARNING, "ADSB Sagetech MXS: unable to send installation data while not in OFF mode.");
 		return;
 	}
 
-	mxs_state.inst.icao = _adsb_icao.get();
+	mxs_state.inst.icao = static_cast<uint32_t>(adsb_icao);
 	mxs_state.inst.emitter = convert_emitter_type_to_sg(_adsb_emit_type.get());
 	mxs_state.inst.size = (sg_size_t)_adsb_len_width.get();
 	mxs_state.inst.maxSpeed = (sg_airspeed_t)_adsb_max_speed.get();
@@ -721,8 +731,10 @@ void SagetechMXS::send_flight_id_msg()
 
 void SagetechMXS::send_operating_msg()
 {
-
-	mxs_state.op.opMode = (sg_op_mode_t)_mxs_op_mode.get();
+	// In auto-conf mode ADSB_ICAO_ID=-1 disables ADS-B Out. Keep the transponder
+	// off so a retained installation from an earlier setup cannot transmit.
+	const bool adsb_out_disabled = !_mxs_ext_cfg.get() && _adsb_icao.get() < 0;
+	mxs_state.op.opMode = adsb_out_disabled ? sg_op_mode_t::modeOff : (sg_op_mode_t)_mxs_op_mode.get();
 
 	if (check_valid_squawk(_adsb_squawk.get())) {
 		mxs_state.op.squawk = convert_base_to_decimal(BASE_OCTAL, _adsb_squawk.get());
@@ -1315,12 +1327,13 @@ void SagetechMXS::auto_config_operating()
 
 void SagetechMXS::auto_config_installation()
 {
-	if (mxs_state.ack.opMode != modeOff) {
-		PX4_ERR("MXS not put in OFF Mode before installation.");
+	const int32_t adsb_icao = _adsb_icao.get();
+
+	if (adsb_icao < 0) {
 		return;
 	}
 
-	mxs_state.inst.icao = (uint32_t) _adsb_icao.get();
+	mxs_state.inst.icao = static_cast<uint32_t>(adsb_icao);
 	snprintf(mxs_state.inst.reg, 8, "%-7s", "PX4TEST");
 
 	mxs_state.inst.com0 = sg_baud_t::baud230400;

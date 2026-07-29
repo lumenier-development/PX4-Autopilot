@@ -10,20 +10,20 @@ Events interface.
 
 ## Fields
 
-| Name           | Type        | Unit [Frame] | Range/Enum | Description                                            |
-| -------------- | ----------- | ------------ | ---------- | ------------------------------------------------------ |
-| timestamp      | `uint64`    |              |            | time since system start (microseconds)                 |
-| id             | `uint32`    |              |            | Event ID                                               |
-| event_sequence | `uint16`    |              |            | Event sequence number                                  |
-| arguments      | `uint8[25]` |              |            | (optional) arguments, depend on event id               |
-| log_levels     | `uint8`     |              |            | Log levels: 4 bits MSB: internal, 4 bits LSB: external |
+| Name                                          | Type        | Unit [Frame] | Range/Enum | Description                                            |
+| --------------------------------------------- | ----------- | ------------ | ---------- | ------------------------------------------------------ |
+| <a id="fld_timestamp"></a>timestamp           | `uint64`    |              |            | time since system start (microseconds)                 |
+| <a id="fld_id"></a>id                         | `uint32`    |              |            | Event ID                                               |
+| <a id="fld_event_sequence"></a>event_sequence | `uint16`    |              |            | Event sequence number                                  |
+| <a id="fld_arguments"></a>arguments           | `uint8[25]` |              |            | (optional) arguments, depend on event id               |
+| <a id="fld_log_levels"></a>log_levels         | `uint8`     |              |            | Log levels: 4 bits MSB: internal, 4 bits LSB: external |
 
 ## Constants
 
-| Name                                              | Type     | Value | Description |
-| ------------------------------------------------- | -------- | ----- | ----------- |
-| <a href="#MESSAGE_VERSION"></a> MESSAGE_VERSION   | `uint32` | 1     |
-| <a href="#ORB_QUEUE_LENGTH"></a> ORB_QUEUE_LENGTH | `uint8`  | 16    |
+| Name                                            | Type     | Value | Description |
+| ----------------------------------------------- | -------- | ----- | ----------- |
+| <a id="#MESSAGE_VERSION"></a> MESSAGE_VERSION   | `uint32` | 1     |
+| <a id="#ORB_QUEUE_LENGTH"></a> ORB_QUEUE_LENGTH | `uint8`  | 16    |
 
 ## Source Message
 

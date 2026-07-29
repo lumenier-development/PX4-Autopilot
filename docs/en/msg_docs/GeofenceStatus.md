@@ -8,18 +8,18 @@ pageClass: is-wide-page
 
 ## Fields
 
-| Name        | Type     | Unit [Frame] | Range/Enum | Description                            |
-| ----------- | -------- | ------------ | ---------- | -------------------------------------- |
-| timestamp   | `uint64` |              |            | time since system start (microseconds) |
-| geofence_id | `uint32` |              |            | loaded geofence id                     |
-| status      | `uint8`  |              |            | Current geofence status                |
+| Name                                    | Type     | Unit [Frame] | Range/Enum | Description                            |
+| --------------------------------------- | -------- | ------------ | ---------- | -------------------------------------- |
+| <a id="fld_timestamp"></a>timestamp     | `uint64` |              |            | time since system start (microseconds) |
+| <a id="fld_geofence_id"></a>geofence_id | `uint32` |              |            | loaded geofence id                     |
+| <a id="fld_status"></a>status           | `uint8`  |              |            | Current geofence status                |
 
 ## Constants
 
-| Name                                                | Type    | Value | Description |
-| --------------------------------------------------- | ------- | ----- | ----------- |
-| <a href="#GF_STATUS_LOADING"></a> GF_STATUS_LOADING | `uint8` | 0     |
-| <a href="#GF_STATUS_READY"></a> GF_STATUS_READY     | `uint8` | 1     |
+| Name                                              | Type    | Value | Description |
+| ------------------------------------------------- | ------- | ----- | ----------- |
+| <a id="#GF_STATUS_LOADING"></a> GF_STATUS_LOADING | `uint8` | 0     |
+| <a id="#GF_STATUS_READY"></a> GF_STATUS_READY     | `uint8` | 1     |
 
 ## Source Message
 

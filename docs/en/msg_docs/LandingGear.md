@@ -8,18 +8,18 @@ pageClass: is-wide-page
 
 ## Fields
 
-| Name         | Type     | Unit [Frame] | Range/Enum | Description                            |
-| ------------ | -------- | ------------ | ---------- | -------------------------------------- |
-| timestamp    | `uint64` |              |            | time since system start (microseconds) |
-| landing_gear | `int8`   |              |            |
+| Name                                      | Type     | Unit [Frame] | Range/Enum | Description                            |
+| ----------------------------------------- | -------- | ------------ | ---------- | -------------------------------------- |
+| <a id="fld_timestamp"></a>timestamp       | `uint64` |              |            | time since system start (microseconds) |
+| <a id="fld_landing_gear"></a>landing_gear | `int8`   |              |            |
 
 ## Constants
 
-| Name                                | Type   | Value | Description            |
-| ----------------------------------- | ------ | ----- | ---------------------- |
-| <a href="#GEAR_UP"></a> GEAR_UP     | `int8` | 1     | landing gear up        |
-| <a href="#GEAR_DOWN"></a> GEAR_DOWN | `int8` | -1    | landing gear down      |
-| <a href="#GEAR_KEEP"></a> GEAR_KEEP | `int8` | 0     | keep the current state |
+| Name                              | Type   | Value | Description            |
+| --------------------------------- | ------ | ----- | ---------------------- |
+| <a id="#GEAR_UP"></a> GEAR_UP     | `int8` | 1     | landing gear up        |
+| <a id="#GEAR_DOWN"></a> GEAR_DOWN | `int8` | -1    | landing gear down      |
+| <a id="#GEAR_KEEP"></a> GEAR_KEEP | `int8` | 0     | keep the current state |
 
 ## Source Message
 

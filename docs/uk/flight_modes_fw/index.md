@@ -39,12 +39,15 @@ Manual-Acrobatic
 - [Утримання](../flight_modes_fw/hold.md) — Літак кружляє навколо позиції утримання GPS на поточній висоті.
   Режим може бути використаний для призупинення місії або для допомоги у відновленні контролю над транспортним засобом у випадку надзвичайної ситуації.
   Це може бути активовано з попередньо налаштованим RC вимикачем або кнопкою паузи QGroundControl.
+- [Guided Course](../flight_modes_fw/guided_course.md) — Vehicle maintains a constant ground track, altitude, and airspeed.
+  The operator commands course, altitude, and airspeed changes in real time from the GCS. Manual stick input is ignored.
 - [Повернення](../flight_modes_fw/return.md) — Транспортний засіб летить по чіткій траєкторії для посадки в безпечному місці.
   За замовчуванням призначенням є місіонний зразок посадки.
   Режим можна активувати вручну (через попередньо програмований RC перемикач) або автоматично (тобто в разі спрацювання аварійного режиму).
 - [Місія](../flight_modes_fw/mission.md) — Транспортний засіб виконує [передбачений план місії/польоту](../flying/missions.md), який був завантажений до керуючого пристрою польоту.
 - [Зліт](../flight_modes_fw/takeoff.md) — Транспортний засіб ініціює послідовність підйому, використовуючи лише _режим запуску за допомогою катапульта або запуску вручну_ або _режим зльоту зі злітної смуги_ (у поточному напрямку).
 - [Посадка](../flight_modes_fw/land.md) — Вертикальний апарат активує послідовність [посадки планера](../flight_modes_fw/mission.md#mission-landing).
+- [Descend](../flight_modes_fw/descend.md) — Failsafe fallback: the vehicle circles down at a fixed bank angle without position control (used when the position estimate is lost). Not pilot-selectable.
 - [Офборд](../flight_modes_fw/offboard.md) — Транспортний засіб слідкує за встановленими точками орієнтації, що надаються через MAVLink або ROS 2.
 
 Пілоти переходять між режимами польоту за допомогою перемикачів на дистанційному керуванні або зі станції земного керування (див. [Конфігурацію режиму польоту](../config/flight_mode.md)).

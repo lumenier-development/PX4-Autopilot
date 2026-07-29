@@ -6,16 +6,16 @@ pageClass: is-wide-page
 
 Global position setpoint triplet in WGS84 coordinates. This are the three next waypoints (or just the next two or one).
 
-**TOPICS:** position_setpointtriplet
+**TOPICS:** position_setpoint_triplet
 
 ## Fields
 
-| Name      | Type               | Unit [Frame] | Range/Enum | Description                            |
-| --------- | ------------------ | ------------ | ---------- | -------------------------------------- |
-| timestamp | `uint64`           |              |            | time since system start (microseconds) |
-| previous  | `PositionSetpoint` |              |            |
-| current   | `PositionSetpoint` |              |            |
-| next      | `PositionSetpoint` |              |            |
+| Name                                | Type               | Unit [Frame] | Range/Enum | Description                            |
+| ----------------------------------- | ------------------ | ------------ | ---------- | -------------------------------------- |
+| <a id="fld_timestamp"></a>timestamp | `uint64`           |              |            | time since system start (microseconds) |
+| <a id="fld_previous"></a>previous   | `PositionSetpoint` |              |            |
+| <a id="fld_current"></a>current     | `PositionSetpoint` |              |            |
+| <a id="fld_next"></a>next           | `PositionSetpoint` |              |            |
 
 ## Source Message
 

@@ -64,9 +64,11 @@ using namespace device;
 
 using namespace time_literals;
 
-class Voxl2IO final : public ModuleBase<Voxl2IO>, public OutputModuleInterface
+class Voxl2IO final : public ModuleBase, public OutputModuleInterface
 {
 public:
+	static Descriptor desc;
+
 	Voxl2IO();
 	~Voxl2IO() override;
 
@@ -83,8 +85,7 @@ public:
 	int print_status() override;
 
 	/** @see OutputModuleInterface */
-	bool updateOutputs(uint16_t outputs[input_rc_s::RC_INPUT_MAX_CHANNELS],
-			   unsigned num_outputs, unsigned num_control_groups_updated) override;
+	bool updateOutputs(float outputs[MAX_ACTUATORS], unsigned num_outputs, unsigned num_control_groups_updated) override;
 
 	virtual int	init();
 

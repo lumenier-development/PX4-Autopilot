@@ -10,18 +10,18 @@ Current status of a Navigator mode. The possible values of nav_state are defined
 
 ## Fields
 
-| Name      | Type     | Unit [Frame] | Range/Enum | Description                            |
-| --------- | -------- | ------------ | ---------- | -------------------------------------- |
-| timestamp | `uint64` |              |            | time since system start (microseconds) |
-| nav_state | `uint8`  |              |            | Source mode (values in VehicleStatus)  |
-| failure   | `uint8`  |              |            | Navigator failure enum                 |
+| Name                                | Type     | Unit [Frame] | Range/Enum | Description                            |
+| ----------------------------------- | -------- | ------------ | ---------- | -------------------------------------- |
+| <a id="fld_timestamp"></a>timestamp | `uint64` |              |            | time since system start (microseconds) |
+| <a id="fld_nav_state"></a>nav_state | `uint8`  |              |            | Source mode (values in VehicleStatus)  |
+| <a id="fld_failure"></a>failure     | `uint8`  |              |            | Navigator failure enum                 |
 
 ## Constants
 
-| Name                                      | Type    | Value | Description                                         |
-| ----------------------------------------- | ------- | ----- | --------------------------------------------------- |
-| <a href="#FAILURE_NONE"></a> FAILURE_NONE | `uint8` | 0     |
-| <a href="#FAILURE_HAGL"></a> FAILURE_HAGL | `uint8` | 1     | Target altitude exceeds maximum height above ground |
+| Name                                    | Type    | Value | Description                                         |
+| --------------------------------------- | ------- | ----- | --------------------------------------------------- |
+| <a id="#FAILURE_NONE"></a> FAILURE_NONE | `uint8` | 0     |
+| <a id="#FAILURE_HAGL"></a> FAILURE_HAGL | `uint8` | 1     | Target altitude exceeds maximum height above ground |
 
 ## Source Message
 

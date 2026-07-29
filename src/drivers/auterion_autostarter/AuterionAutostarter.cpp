@@ -41,6 +41,8 @@
 #include <builtin/builtin.h>
 #include <sys/wait.h>
 
+ModuleBase::Descriptor AuterionAutostarter::desc{task_spawn, custom_command, print_usage};
+
 AuterionAutostarter::AuterionAutostarter() :
 	ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::hp_default)
 {
@@ -57,7 +59,7 @@ bool AuterionAutostarter::init()
 void AuterionAutostarter::Run()
 {
 	if (should_exit()) {
-		exit_and_cleanup();
+		exit_and_cleanup(desc);
 		return;
 	}
 
@@ -65,7 +67,7 @@ void AuterionAutostarter::Run()
 	_actuator_armed_sub.copy(&actuator_armed);
 
 	if (actuator_armed.armed) {
-		exit_and_cleanup();
+		exit_and_cleanup(desc);
 		return;
 	}
 
@@ -171,19 +173,19 @@ int AuterionAutostarter::ina226_probe(const uint32_t instance) const
 		msgv[1].buffer = rxdata;
 		msgv[1].length = sizeof(rxdata);
 
-		txdata[0] = {INA226_MFG_ID};
+		txdata[0] = static_cast<uint8_t>(ina226::Register::MFG_ID);
 		ret = I2C_TRANSFER(i2c.get(), msgv, 2);
 		uint16_t value = static_cast<uint16_t>(rxdata[1] | rxdata[0] << 8);
 
-		if (ret != PX4_OK || value != INA226_MFG_ID_TI) {
+		if (ret != PX4_OK || value != ina226::MANFID) {
 			ret = PX4_ERROR;
 
 		} else {
-			txdata[0] = {INA226_MFG_DIEID};
+			txdata[0] = static_cast<uint8_t>(ina226::Register::DIE_ID);
 			ret = I2C_TRANSFER(i2c.get(), msgv, 2);
 			value = static_cast<uint16_t>(rxdata[1] | rxdata[0] << 8);
 
-			if (ret != PX4_OK || value != INA226_MFG_DIE) {
+			if (ret != PX4_OK || value != ina226::DIEID) {
 				ret = PX4_ERROR;
 			}
 		}
@@ -510,8 +512,8 @@ int AuterionAutostarter::task_spawn(int argc, char *argv[])
 	AuterionAutostarter *instance = new AuterionAutostarter();
 
 	if (instance) {
-		_object.store(instance);
-		_task_id = task_id_is_work_queue;
+		desc.object.store(instance);
+		desc.task_id = task_id_is_work_queue;
 
 		if (instance->init()) {
 			return PX4_OK;
@@ -522,8 +524,8 @@ int AuterionAutostarter::task_spawn(int argc, char *argv[])
 	}
 
 	delete instance;
-	_object.store(nullptr);
-	_task_id = -1;
+	desc.object.store(nullptr);
+	desc.task_id = -1;
 
 	return PX4_ERROR;
 }
@@ -555,5 +557,5 @@ Driver for starting and auto-detecting different power monitors.
 
 extern "C" __EXPORT int auterion_autostarter_main(int argc, char *argv[])
 {
-	return AuterionAutostarter::main(argc, argv);
+	return ModuleBase::main(AuterionAutostarter::desc, argc, argv);
 }

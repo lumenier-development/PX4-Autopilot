@@ -57,7 +57,7 @@ Some VTX devices enter pit mode when power is set to 0, regardless of the `VTX_P
 
 The VTX table stores frequency and power mappings for your specific device.
 
-The manufacturer usually provides this information in the form of a JSON file that can be translated into a [Betaflight CLI command set](https://www.betaflight.com/docs/development/VTX#vtx-table) that this driver implements for compatibility.
+The manufacturer usually provides this information in the form of a JSON file that can be translated into a [Betaflight CLI command set](https://betaflight.com/docs/wiki/guides/current/VTX#vtx-tables) that this driver implements for compatibility.
 
 ### Power Level Configuration
 
@@ -86,7 +86,8 @@ vtxtable save
 
 This will create a VTX table with 5 power levels.
 
-```nsh> vtxtable status
+```sh
+nsh> vtxtable status
 INFO  [vtxtable] VTX table "Peak THOR T67":
 INFO  [vtxtable] Power levels:
 INFO  [vtxtable]   1:  0 = 25

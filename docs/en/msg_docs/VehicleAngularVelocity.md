@@ -8,18 +8,18 @@ pageClass: is-wide-page
 
 ## Fields
 
-| Name             | Type         | Unit [Frame] | Range/Enum | Description                                                                |
-| ---------------- | ------------ | ------------ | ---------- | -------------------------------------------------------------------------- |
-| timestamp        | `uint64`     |              |            | time since system start (microseconds)                                     |
-| timestamp_sample | `uint64`     |              |            | timestamp of the data sample on which this message is based (microseconds) |
-| xyz              | `float32[3]` |              |            | Bias corrected angular velocity about the FRD body frame XYZ-axis in rad/s |
-| xyz_derivative   | `float32[3]` |              |            | angular acceleration about the FRD body frame XYZ-axis in rad/s^2          |
+| Name                                              | Type         | Unit [Frame] | Range/Enum | Description                                                                |
+| ------------------------------------------------- | ------------ | ------------ | ---------- | -------------------------------------------------------------------------- |
+| <a id="fld_timestamp"></a>timestamp               | `uint64`     |              |            | time since system start (microseconds)                                     |
+| <a id="fld_timestamp_sample"></a>timestamp_sample | `uint64`     |              |            | timestamp of the data sample on which this message is based (microseconds) |
+| <a id="fld_xyz"></a>xyz                           | `float32[3]` |              |            | Bias corrected angular velocity about the FRD body frame XYZ-axis in rad/s |
+| <a id="fld_xyz_derivative"></a>xyz_derivative     | `float32[3]` |              |            | angular acceleration about the FRD body frame XYZ-axis in rad/s^2          |
 
 ## Constants
 
-| Name                                            | Type     | Value | Description |
-| ----------------------------------------------- | -------- | ----- | ----------- |
-| <a href="#MESSAGE_VERSION"></a> MESSAGE_VERSION | `uint32` | 0     |
+| Name                                          | Type     | Value | Description |
+| --------------------------------------------- | -------- | ----- | ----------- |
+| <a id="#MESSAGE_VERSION"></a> MESSAGE_VERSION | `uint32` | 0     |
 
 ## Source Message
 

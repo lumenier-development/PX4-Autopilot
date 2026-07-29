@@ -80,10 +80,12 @@ using matrix::Quatf;
 using matrix::Vector2f;
 using matrix::Vector3f;
 
-class AirspeedModule : public ModuleBase<AirspeedModule>, public ModuleParams,
+class AirspeedModule : public ModuleBase, public ModuleParams,
 	public px4::ScheduledWorkItem
 {
 public:
+
+	static Descriptor desc;
 
 	AirspeedModule();
 
@@ -186,11 +188,7 @@ private:
 
 	DEFINE_PARAMETERS(
 		(ParamFloat<px4::params::ASPD_WIND_NSD>) _param_aspd_wind_nsd,
-		(ParamFloat<px4::params::ASPD_SCALE_NSD>) _param_aspd_scale_nsd,
 		(ParamFloat<px4::params::ASPD_TAS_NOISE>) _param_west_tas_noise,
-		(ParamFloat<px4::params::ASPD_BETA_NOISE>) _param_west_beta_noise,
-		(ParamInt<px4::params::ASPD_TAS_GATE>) _param_west_tas_gate,
-		(ParamInt<px4::params::ASPD_BETA_GATE>) _param_west_beta_gate,
 		(ParamInt<px4::params::ASPD_SCALE_APPLY>) _param_aspd_scale_apply,
 		(ParamFloat<px4::params::ASPD_SCALE_1>) _param_airspeed_scale_1,
 		(ParamFloat<px4::params::ASPD_SCALE_2>) _param_airspeed_scale_2,
@@ -228,6 +226,8 @@ private:
 	void update_throttle_filter(hrt_abstime t_now);
 };
 
+ModuleBase::Descriptor AirspeedModule::desc{task_spawn, custom_command, print_usage};
+
 AirspeedModule::AirspeedModule():
 	ModuleParams(nullptr),
 	ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::nav_and_controllers)
@@ -261,10 +261,10 @@ AirspeedModule::task_spawn(int argc, char *argv[])
 		return PX4_ERROR;
 	}
 
-	_object.store(dev);
+	desc.object.store(dev);
 
 	dev->ScheduleOnInterval(SCHEDULE_INTERVAL, 10000);
-	_task_id = task_id_is_work_queue;
+	desc.task_id = task_id_is_work_queue;
 	return PX4_OK;
 
 }
@@ -409,9 +409,8 @@ AirspeedModule::Run()
 				if (_in_takeoff_situation) {
 					// set flag to false if either speed is above stall speed,
 					// or launch detection + land detection indicate flying
-					const bool speed_above_stall = airspeed_raw.indicated_airspeed_m_s > _param_fw_airspd_stall.get();
-					airspeed_raw.indicated_airspeed_m_s > _param_fw_airspd_stall.get()
-					|| (PX4_ISFINITE(_ground_minus_wind_CAS) && _ground_minus_wind_CAS > _param_fw_airspd_stall.get());
+					const bool speed_above_stall = _airspeed_validator[i].get_CAS() > _param_fw_airspd_stall.get()
+								       || (PX4_ISFINITE(_ground_minus_wind_CAS) && _ground_minus_wind_CAS > _param_fw_airspd_stall.get());
 
 					launch_detection_status_s launch_detection_status{};
 					_launch_detection_status_sub.copy(&launch_detection_status);
@@ -440,8 +439,10 @@ AirspeedModule::Run()
 
 			// save estimated airspeed scale after disarm if airspeed is valid and scale has changed
 			if (!armed && _armed_prev) {
+				const float scale_change_threshold = _param_airspeed_scale[i] * 0.03f; // 3% relative change threshold
+
 				if (_param_aspd_scale_apply.get() > 0 && _airspeed_validator[i].get_airspeed_valid()
-				    && fabsf(_airspeed_validator[i].get_CAS_scale_validated() - _param_airspeed_scale[i]) > FLT_EPSILON) {
+				    && fabsf(_airspeed_validator[i].get_CAS_scale_validated() - _param_airspeed_scale[i]) > scale_change_threshold) {
 
 					mavlink_log_info(&_mavlink_log_pub, "Airspeed sensor Nr. %d ASPD_SCALE updated: %.4f --> %.4f", i + 1,
 							 (double)_param_airspeed_scale[i],
@@ -478,7 +479,7 @@ AirspeedModule::Run()
 	perf_end(_perf_elapsed);
 
 	if (should_exit()) {
-		exit_and_cleanup();
+		exit_and_cleanup(desc);
 	}
 }
 
@@ -513,19 +514,10 @@ void AirspeedModule::update_params()
 	}
 
 	_wind_estimator_sideslip.set_wind_process_noise_spectral_density(_param_aspd_wind_nsd.get());
-	_wind_estimator_sideslip.set_tas_scale_process_noise_spectral_density(_param_aspd_scale_nsd.get());
-	_wind_estimator_sideslip.set_tas_noise(_param_west_tas_noise.get());
-	_wind_estimator_sideslip.set_beta_noise(_param_west_beta_noise.get());
-	_wind_estimator_sideslip.set_tas_gate(_param_west_tas_gate.get());
-	_wind_estimator_sideslip.set_beta_gate(_param_west_beta_gate.get());
 
 	for (int i = 0; i < MAX_NUM_AIRSPEED_SENSORS; i++) {
 		_airspeed_validator[i].set_wind_estimator_wind_process_noise_spectral_density(_param_aspd_wind_nsd.get());
-		_airspeed_validator[i].set_wind_estimator_tas_scale_process_noise_spectral_density(_param_aspd_scale_nsd.get());
 		_airspeed_validator[i].set_wind_estimator_tas_noise(_param_west_tas_noise.get());
-		_airspeed_validator[i].set_wind_estimator_beta_noise(_param_west_beta_noise.get());
-		_airspeed_validator[i].set_wind_estimator_tas_gate(_param_west_tas_gate.get());
-		_airspeed_validator[i].set_wind_estimator_beta_gate(_param_west_beta_gate.get());
 
 		_airspeed_validator[i].set_tas_scale_apply(_param_aspd_scale_apply.get());
 		_airspeed_validator[i].set_wind_estimator_tas_scale_init(_param_airspeed_scale[i]);
@@ -647,7 +639,7 @@ void AirspeedModule::select_airspeed_and_publish()
 	bool airspeed_sensor_switching_necessary = false;
 	const int prev_airspeed_index = static_cast<int>(_prev_airspeed_src);
 
-	if (_prev_airspeed_src < AirspeedSource::SENSOR_1) {
+	if (_prev_airspeed_src < AirspeedSource::SENSOR_1 || _prev_airspeed_src > AirspeedSource::SENSOR_3) {
 		airspeed_sensor_switching_necessary = true;
 
 	} else {
@@ -745,11 +737,10 @@ void AirspeedModule::select_airspeed_and_publish()
 	airspeed_validated.indicated_airspeed_m_s = NAN;
 	airspeed_validated.calibrated_airspeed_m_s = NAN;
 	airspeed_validated.true_airspeed_m_s = NAN;
+	airspeed_validated.airspeed_derivative_filtered = NAN;
+	airspeed_validated.pitch_filtered = NAN;
 
-	airspeed_validated.airspeed_derivative_filtered = _airspeed_validator[valid_airspeed_index -
-					     1].get_airspeed_derivative();
 	airspeed_validated.throttle_filtered = _throttle_filtered.getState();
-	airspeed_validated.pitch_filtered = _airspeed_validator[valid_airspeed_index - 1].get_pitch_filtered();
 
 	airspeed_validated.airspeed_source = valid_airspeed_index;
 	_prev_airspeed_src = _valid_airspeed_src;
@@ -785,6 +776,8 @@ void AirspeedModule::select_airspeed_and_publish()
 		airspeed_validated.true_airspeed_m_s = _airspeed_validator[valid_airspeed_index - 1].get_TAS();
 		airspeed_validated.calibrated_ground_minus_wind_m_s = _ground_minus_wind_CAS;
 		airspeed_validated.calibraded_airspeed_synth_m_s = get_synthetic_airspeed(airspeed_validated.throttle_filtered);
+		airspeed_validated.airspeed_derivative_filtered = _airspeed_validator[valid_airspeed_index - 1].get_airspeed_derivative();
+		airspeed_validated.pitch_filtered = _airspeed_validator[valid_airspeed_index - 1].get_pitch_filtered();
 		break;
 	}
 
@@ -867,7 +860,7 @@ void AirspeedModule::update_throttle_filter(hrt_abstime now)
 
 int AirspeedModule::custom_command(int argc, char *argv[])
 {
-	if (!is_running()) {
+	if (!is_running(desc)) {
 		int ret = AirspeedModule::task_spawn(argc, argv);
 
 		if (ret) {
@@ -906,5 +899,5 @@ and also publishes those.
 
 extern "C" __EXPORT int airspeed_selector_main(int argc, char *argv[])
 {
-	return AirspeedModule::main(argc, argv);
+	return ModuleBase::main(AirspeedModule::desc, argc, argv);
 }

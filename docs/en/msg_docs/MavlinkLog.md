@@ -8,17 +8,17 @@ pageClass: is-wide-page
 
 ## Fields
 
-| Name      | Type        | Unit [Frame] | Range/Enum | Description                                              |
-| --------- | ----------- | ------------ | ---------- | -------------------------------------------------------- |
-| timestamp | `uint64`    |              |            | time since system start (microseconds)                   |
-| text      | `char[127]` |              |            |
-| severity  | `uint8`     |              |            | log level (same as in the linux kernel, starting with 0) |
+| Name                                | Type        | Unit [Frame] | Range/Enum | Description                                              |
+| ----------------------------------- | ----------- | ------------ | ---------- | -------------------------------------------------------- |
+| <a id="fld_timestamp"></a>timestamp | `uint64`    |              |            | time since system start (microseconds)                   |
+| <a id="fld_text"></a>text           | `char[127]` |              |            |
+| <a id="fld_severity"></a>severity   | `uint8`     |              |            | log level (same as in the linux kernel, starting with 0) |
 
 ## Constants
 
-| Name                                              | Type    | Value | Description |
-| ------------------------------------------------- | ------- | ----- | ----------- |
-| <a href="#ORB_QUEUE_LENGTH"></a> ORB_QUEUE_LENGTH | `uint8` | 8     |
+| Name                                            | Type    | Value | Description |
+| ----------------------------------------------- | ------- | ----- | ----------- |
+| <a id="#ORB_QUEUE_LENGTH"></a> ORB_QUEUE_LENGTH | `uint8` | 8     |
 
 ## Source Message
 

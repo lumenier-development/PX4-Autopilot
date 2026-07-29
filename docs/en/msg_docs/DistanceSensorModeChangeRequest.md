@@ -4,21 +4,21 @@ pageClass: is-wide-page
 
 # DistanceSensorModeChangeRequest (UORB message)
 
-**TOPICS:** distance_sensormode_changerequest
+**TOPICS:** distance_sensor_mode_change_request
 
 ## Fields
 
-| Name           | Type     | Unit [Frame] | Range/Enum | Description                                   |
-| -------------- | -------- | ------------ | ---------- | --------------------------------------------- |
-| timestamp      | `uint64` |              |            | time since system start (microseconds)        |
-| request_on_off | `uint8`  |              |            | request to disable/enable the distance sensor |
+| Name                                          | Type     | Unit [Frame] | Range/Enum | Description                                   |
+| --------------------------------------------- | -------- | ------------ | ---------- | --------------------------------------------- |
+| <a id="fld_timestamp"></a>timestamp           | `uint64` |              |            | time since system start (microseconds)        |
+| <a id="fld_request_on_off"></a>request_on_off | `uint8`  |              |            | request to disable/enable the distance sensor |
 
 ## Constants
 
-| Name                                    | Type    | Value | Description |
-| --------------------------------------- | ------- | ----- | ----------- |
-| <a href="#REQUEST_OFF"></a> REQUEST_OFF | `uint8` | 0     |
-| <a href="#REQUEST_ON"></a> REQUEST_ON   | `uint8` | 1     |
+| Name                                  | Type    | Value | Description |
+| ------------------------------------- | ------- | ----- | ----------- |
+| <a id="#REQUEST_OFF"></a> REQUEST_OFF | `uint8` | 0     |
+| <a id="#REQUEST_ON"></a> REQUEST_ON   | `uint8` | 1     |
 
 ## Source Message
 

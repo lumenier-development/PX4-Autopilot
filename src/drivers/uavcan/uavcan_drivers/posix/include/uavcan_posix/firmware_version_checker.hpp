@@ -54,6 +54,7 @@ class FirmwareVersionChecker : public uavcan::IFirmwareVersionChecker
 
 	BasePathString base_path_;
 	BasePathString alt_base_path_;
+	BasePathString nfs_base_path_;
 
 	static void addSlash(BasePathString &path)
 	{
@@ -94,7 +95,7 @@ protected:
 	 * @return                          True - the class will begin sending update requests.
 	 *                                  False - the node will be ignored, no request will be sent.
 	 */
-	virtual bool shouldRequestFirmwareUpdate(uavcan::NodeID,
+	virtual bool shouldRequestFirmwareUpdate(uavcan::NodeID node_id,
 			const uavcan::protocol::GetNodeInfo::Response &node_info,
 			FirmwareFilePath &out_firmware_file_path)
 	{
@@ -132,6 +133,14 @@ protected:
 				snprintf(bin_file_name, sizeof(bin_file_name), "%u.bin", board_id);
 				snprintf(bin_file_path, sizeof(bin_file_path), "%s/%s",
 					 getFirmwareAltBasePath().c_str(), bin_file_name);
+
+				found = getFileInfo(bin_file_path, descriptor) == 0;
+			}
+
+			if (!found && !nfs_base_path_.empty()) {
+				snprintf(bin_file_name, sizeof(bin_file_name), "%u.bin", board_id);
+				snprintf(bin_file_path, sizeof(bin_file_path), "%s/%s",
+					 nfs_base_path_.c_str(), bin_file_name);
 
 				found = getFileInfo(bin_file_path, descriptor) == 0;
 			}
@@ -174,6 +183,10 @@ protected:
 		return true;
 	}
 
+	static constexpr unsigned _MaxChunk = 512 / sizeof(uint64_t);
+	inline static uint64_t _chunk[_MaxChunk]
+	px4_cache_aligned_data() = {};
+
 public:
 	struct AppDescriptor {
 		uavcan::uint8_t signature[sizeof(uavcan::uint64_t)];
@@ -193,9 +206,6 @@ public:
 	static int getFileInfo(const char *path, AppDescriptor &descriptor, int limit = 0)
 	{
 		using namespace std;
-
-		const unsigned MaxChunk = 512 / sizeof(uint64_t);
-
 		// Make sure this does not present as a valid descriptor
 		struct {
 			union {
@@ -206,14 +216,13 @@ public:
 		} s;
 
 		int rv = -ENOENT;
-		uint64_t chunk[MaxChunk];
 		int fd = open(path, O_RDONLY);
 
 		if (fd >= 0) {
 			AppDescriptor *pdescriptor = UAVCAN_NULLPTR;
 
 			while (pdescriptor == UAVCAN_NULLPTR && limit >= 0) {
-				int len = read(fd, chunk, sizeof(chunk));
+				int len = read(fd, _chunk, sizeof(_chunk));
 
 				if (len == 0) {
 					break;
@@ -224,10 +233,10 @@ public:
 					goto out_close;
 				}
 
-				uint64_t *p = &chunk[0];
+				uint64_t *p = &_chunk[0];
 
 				if (limit > 0) {
-					limit -= sizeof(chunk);
+					limit -= sizeof(_chunk);
 				}
 
 				do {
@@ -237,7 +246,7 @@ public:
 						rv = 0;
 						break;
 					}
-				} while (p++ <= &chunk[MaxChunk - (sizeof(AppDescriptor) / sizeof(chunk[0]))]);
+				} while (p++ <= &_chunk[_MaxChunk - (sizeof(AppDescriptor) / sizeof(_chunk[0]))]);
 			}
 
 out_close:
@@ -250,6 +259,13 @@ out_close:
 	const BasePathString &getFirmwareBasePath() const { return base_path_; }
 
 	const BasePathString &getFirmwareAltBasePath() const { return alt_base_path_; }
+
+	const BasePathString &getFirmwareNfsBasePath() const { return nfs_base_path_; }
+
+	void setFirmwareNfsBasePath(const char *path)
+	{
+		nfs_base_path_ = path;
+	}
 
 	static char getPathSeparator()
 	{

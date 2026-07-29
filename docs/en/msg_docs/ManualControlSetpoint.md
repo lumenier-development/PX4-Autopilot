@@ -8,39 +8,39 @@ pageClass: is-wide-page
 
 ## Fields
 
-| Name             | Type      | Unit [Frame] | Range/Enum | Description                                                                     |
-| ---------------- | --------- | ------------ | ---------- | ------------------------------------------------------------------------------- |
-| timestamp        | `uint64`  |              |            | time since system start (microseconds)                                          |
-| timestamp_sample | `uint64`  |              |            | the timestamp of the raw data (microseconds)                                    |
-| valid            | `bool`    |              |            |
-| data_source      | `uint8`   |              |            |
-| roll             | `float32` |              |            | move right, positive roll rotation, right side down                             |
-| pitch            | `float32` |              |            | move forward, negative pitch rotation, nose down                                |
-| yaw              | `float32` |              |            | positive yaw rotation, clockwise when seen top down                             |
-| throttle         | `float32` |              |            | move up, positive thrust, -1 is minimum available 0% or -100% +1 is 100% thrust |
-| flaps            | `float32` |              |            | position of flaps switch/knob/lever [-1, 1]                                     |
-| aux1             | `float32` |              |            |
-| aux2             | `float32` |              |            |
-| aux3             | `float32` |              |            |
-| aux4             | `float32` |              |            |
-| aux5             | `float32` |              |            |
-| aux6             | `float32` |              |            |
-| sticks_moving    | `bool`    |              |            |
-| buttons          | `uint16`  |              |            | From uint16 buttons field of Mavlink manual_control message                     |
+| Name                                              | Type      | Unit [Frame] | Range/Enum | Description                                                                                       |
+| ------------------------------------------------- | --------- | ------------ | ---------- | ------------------------------------------------------------------------------------------------- |
+| <a id="fld_timestamp"></a>timestamp               | `uint64`  |              |            | time since system start (microseconds)                                                            |
+| <a id="fld_timestamp_sample"></a>timestamp_sample | `uint64`  |              |            | the timestamp of the raw data (microseconds)                                                      |
+| <a id="fld_valid"></a>valid                       | `bool`    |              |            |
+| <a id="fld_data_source"></a>data_source           | `uint8`   |              |            |
+| <a id="fld_roll"></a>roll                         | `float32` |              |            | move right, positive roll rotation, right side down                                               |
+| <a id="fld_pitch"></a>pitch                       | `float32` |              |            | move forward, negative pitch rotation, nose down                                                  |
+| <a id="fld_yaw"></a>yaw                           | `float32` |              |            | positive yaw rotation, clockwise when seen top down                                               |
+| <a id="fld_throttle"></a>throttle                 | `float32` |              |            | move up, positive thrust, -1 is minimum available 0% or -100% +1 is 100% thrust                   |
+| <a id="fld_flaps"></a>flaps                       | `float32` |              |            | position of flaps switch/knob/lever [-1, 1]                                                       |
+| <a id="fld_aux1"></a>aux1                         | `float32` |              |            |
+| <a id="fld_aux2"></a>aux2                         | `float32` |              |            |
+| <a id="fld_aux3"></a>aux3                         | `float32` |              |            |
+| <a id="fld_aux4"></a>aux4                         | `float32` |              |            |
+| <a id="fld_aux5"></a>aux5                         | `float32` |              |            |
+| <a id="fld_aux6"></a>aux6                         | `float32` |              |            |
+| <a id="fld_sticks_moving"></a>sticks_moving       | `bool`    |              |            | manual control override request in an auto or offboard mode, only gets true if feature is enabled |
+| <a id="fld_buttons"></a>buttons                   | `uint16`  |              |            | From uint16 buttons field of Mavlink manual_control message                                       |
 
 ## Constants
 
-| Name                                              | Type     | Value | Description              |
-| ------------------------------------------------- | -------- | ----- | ------------------------ |
-| <a href="#MESSAGE_VERSION"></a> MESSAGE_VERSION   | `uint32` | 0     |
-| <a href="#SOURCE_UNKNOWN"></a> SOURCE_UNKNOWN     | `uint8`  | 0     |
-| <a href="#SOURCE_RC"></a> SOURCE_RC               | `uint8`  | 1     | radio control (input_rc) |
-| <a href="#SOURCE_MAVLINK_0"></a> SOURCE_MAVLINK_0 | `uint8`  | 2     | mavlink instance 0       |
-| <a href="#SOURCE_MAVLINK_1"></a> SOURCE_MAVLINK_1 | `uint8`  | 3     | mavlink instance 1       |
-| <a href="#SOURCE_MAVLINK_2"></a> SOURCE_MAVLINK_2 | `uint8`  | 4     | mavlink instance 2       |
-| <a href="#SOURCE_MAVLINK_3"></a> SOURCE_MAVLINK_3 | `uint8`  | 5     | mavlink instance 3       |
-| <a href="#SOURCE_MAVLINK_4"></a> SOURCE_MAVLINK_4 | `uint8`  | 6     | mavlink instance 4       |
-| <a href="#SOURCE_MAVLINK_5"></a> SOURCE_MAVLINK_5 | `uint8`  | 7     | mavlink instance 5       |
+| Name                                            | Type     | Value | Description              |
+| ----------------------------------------------- | -------- | ----- | ------------------------ |
+| <a id="#MESSAGE_VERSION"></a> MESSAGE_VERSION   | `uint32` | 0     |
+| <a id="#SOURCE_UNKNOWN"></a> SOURCE_UNKNOWN     | `uint8`  | 0     |
+| <a id="#SOURCE_RC"></a> SOURCE_RC               | `uint8`  | 1     | radio control (input_rc) |
+| <a id="#SOURCE_MAVLINK_0"></a> SOURCE_MAVLINK_0 | `uint8`  | 2     | mavlink instance 0       |
+| <a id="#SOURCE_MAVLINK_1"></a> SOURCE_MAVLINK_1 | `uint8`  | 3     | mavlink instance 1       |
+| <a id="#SOURCE_MAVLINK_2"></a> SOURCE_MAVLINK_2 | `uint8`  | 4     | mavlink instance 2       |
+| <a id="#SOURCE_MAVLINK_3"></a> SOURCE_MAVLINK_3 | `uint8`  | 5     | mavlink instance 3       |
+| <a id="#SOURCE_MAVLINK_4"></a> SOURCE_MAVLINK_4 | `uint8`  | 6     | mavlink instance 4       |
+| <a id="#SOURCE_MAVLINK_5"></a> SOURCE_MAVLINK_5 | `uint8`  | 7     | mavlink instance 5       |
 
 ## Source Message
 
@@ -88,7 +88,7 @@ float32 aux4
 float32 aux5
 float32 aux6
 
-bool sticks_moving
+bool sticks_moving # manual control override request in an auto or offboard mode, only gets true if feature is enabled
 
 uint16 buttons		# From uint16 buttons field of Mavlink manual_control message
 

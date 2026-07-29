@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2022 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2022-2026 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -65,9 +65,11 @@
 
 using namespace time_literals;
 
-class SagetechMXS : public ModuleBase<SagetechMXS>, public ModuleParams, public px4::ScheduledWorkItem
+class SagetechMXS : public ModuleBase, public ModuleParams, public px4::ScheduledWorkItem
 {
 public:
+	static Descriptor desc;
+
 	SagetechMXS(const char *port);
 	~SagetechMXS() override;
 

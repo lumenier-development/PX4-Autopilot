@@ -8,18 +8,18 @@ pageClass: is-wide-page
 
 ## Fields
 
-| Name      | Type          | Unit [Frame] | Range/Enum | Description                            |
-| --------- | ------------- | ------------ | ---------- | -------------------------------------- |
-| timestamp | `uint64`      |              |            | time since system start (microseconds) |
-| noutputs  | `uint32`      |              |            | valid outputs                          |
-| output    | `float32[16]` |              |            | output data, in natural output units   |
+| Name                                | Type          | Unit [Frame] | Range/Enum | Description                            |
+| ----------------------------------- | ------------- | ------------ | ---------- | -------------------------------------- |
+| <a id="fld_timestamp"></a>timestamp | `uint64`      |              |            | time since system start (microseconds) |
+| <a id="fld_noutputs"></a>noutputs   | `uint32`      |              |            | valid outputs                          |
+| <a id="fld_output"></a>output       | `float32[16]` |              |            | output data, in natural output units   |
 
 ## Constants
 
-| Name                                                                  | Type    | Value | Description         |
-| --------------------------------------------------------------------- | ------- | ----- | ------------------- |
-| <a href="#NUM_ACTUATOR_OUTPUTS"></a> NUM_ACTUATOR_OUTPUTS             | `uint8` | 16    |
-| <a href="#NUM_ACTUATOR_OUTPUT_GROUPS	"></a> NUM_ACTUATOR_OUTPUT_GROUPS | `uint8` | 4     | for sanity checking |
+| Name                                                                | Type    | Value | Description         |
+| ------------------------------------------------------------------- | ------- | ----- | ------------------- |
+| <a id="#NUM_ACTUATOR_OUTPUTS"></a> NUM_ACTUATOR_OUTPUTS             | `uint8` | 16    |
+| <a id="#NUM_ACTUATOR_OUTPUT_GROUPS"></a> NUM_ACTUATOR_OUTPUT_GROUPS | `uint8` | 4     | for sanity checking |
 
 ## Source Message
 
