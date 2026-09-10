@@ -100,6 +100,7 @@ set(msg_files
 	FixedWingLateralGuidanceStatus.msg
 	FixedWingLateralStatus.msg
 	FixedWingRunwayControl.msg
+	FixedWingTakeoffStatus.msg
 	GeneratorStatus.msg
 	GeofenceResult.msg
 	GeofenceStatus.msg
@@ -229,6 +230,7 @@ set(msg_files
 	TrajectorySetpoint6dof.msg
 	TransponderReport.msg
 	TuneControl.msg
+	UavcanFirmwareUpdate.msg
 	UavcanParameterRequest.msg
 	UavcanParameterValue.msg
 	UlogStream.msg
@@ -307,7 +309,8 @@ if(CONFIG_MODULES_VISION_TARGET_ESTIMATOR)
 		VteBiasInitStatus.msg
 		FiducialMarkerPosReport.msg
 		FiducialMarkerYawReport.msg
-		PrecLandStatus.msg)
+		PrecLandStatus.msg
+		PrecTakeoffStatus.msg)
 endif()
 
 px4_list_make_absolute(msg_files ${CMAKE_CURRENT_SOURCE_DIR} ${msg_files})
