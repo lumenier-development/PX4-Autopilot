@@ -51,6 +51,12 @@
 #define GPIO_CAN_TERM                    GPIO_CAN1_TERMINATION
 
 /* Boot config */
+/* IR illuminator enable (active low). The LED driver is gated by this line AND the
+ * PAA3905 LED_SYNC output, so the IR only lights while the sensor exposes a frame.
+ * Released (high) at boot; drive low to enable.
+ */
+#define GPIO_IR_ENABLE_N      /* PA1  */ (GPIO_OUTPUT|GPIO_OPENDRAIN|GPIO_SPEED_2MHz|GPIO_OUTPUT_SET|GPIO_PORTA|GPIO_PIN1)
+
 #define GPIO_BOOT_CONFIG      /* PC15 */ (GPIO_INPUT|GPIO_PULLUP|GPIO_PORTC|GPIO_PIN15|GPIO_EXTI)
 
 /* LEDs are driven with push open drain to support Anode to 5V or 3.3V */
@@ -80,6 +86,7 @@
 		GPIO_CAN1_RX,                     \
 		GPIO_CAN1_SILENT_S0,              \
 		GPIO_CAN1_TERMINATION,            \
+		GPIO_IR_ENABLE_N,                 \
 		GPIO_nLED_RED,                    \
 		GPIO_nLED_BLUE,                   \
 	}
