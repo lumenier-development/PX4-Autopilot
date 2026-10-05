@@ -33,6 +33,8 @@
 
 #include "PAA3905.hpp"
 
+#include <px4_platform_common/time.h>
+
 static constexpr int16_t combine(uint8_t msb, uint8_t lsb)
 {
 	return (msb << 8u) | lsb;
@@ -97,6 +99,11 @@ bool PAA3905::Reset()
 void PAA3905::exit_and_cleanup()
 {
 	DataReadyInterruptDisable();
+
+	// Put the sensor into shutdown so it stops framing (and stops pulsing LED_SYNC);
+	// the next start() issues Power_Up_Reset which wakes it again.
+	RegisterWrite(Register::Shutdown, 0xB6);
+
 	I2CSPIDriverBase::exit_and_cleanup();
 }
 
@@ -117,23 +124,30 @@ void PAA3905::print_status()
 int PAA3905::probe()
 {
 	for (int retry = 0; retry < 3; retry++) {
+		if (retry > 0) {
+			// A sensor left in shutdown does not answer register reads until it is
+			// reset, so wake it before retrying the ID check.
+			RegisterWrite(Register::Power_Up_Reset, 0x5A);
+			px4_usleep(1000);
+		}
+
 		const uint8_t Product_ID = RegisterRead(Register::Product_ID);
 		const uint8_t Revision_ID = RegisterRead(Register::Revision_ID);
 		const uint8_t Inverse_Product_ID = RegisterRead(Register::Inverse_Product_ID);
 
 		if (Product_ID != PRODUCT_ID) {
 			DEVICE_DEBUG("unexpected Product_ID 0x%02x", Product_ID);
-			break;
+			continue;
 		}
 
 		if (Revision_ID != REVISION_ID) {
 			DEVICE_DEBUG("unexpected Revision_ID 0x%02x", Revision_ID);
-			break;
+			continue;
 		}
 
 		if (Inverse_Product_ID != PRODUCT_ID_INVERSE) {
 			DEVICE_DEBUG("unexpected Inverse_Product_ID 0x%02x", Inverse_Product_ID);
-			break;
+			continue;
 		}
 
 		return PX4_OK;
