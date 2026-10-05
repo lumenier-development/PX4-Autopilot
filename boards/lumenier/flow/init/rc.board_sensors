@@ -13,7 +13,7 @@ param set-default SENS_AFBR_THRESH 8
 param set-default SENS_AFBR_HYSTER 2
 
 # Internal SPI
-paa3905 -s start -Y 270
+paa3905 -s start -Y 0
 
 lsm6dsv -R 0 -s start
 
