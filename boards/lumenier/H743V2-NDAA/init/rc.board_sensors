@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+# Lumenier LUX H743 V2 - NDAA specific board sensors init
+#------------------------------------------------------------------------------
+
+# Start ADC driver
+board_adc start
+
+# IMU 1: LSM6DSK320X on SPI3
+lsm6dsv -R 8 -s -b 3 start
+
+# IMU 2: LSM6DSK320X on SPI4 (mounted 45 deg from IMU 1)
+lsm6dsv -R 9 -s -b 4 start
+
+# Onboard Baro
+dps310 -I -a 118 start
+
+# Internal Compass
+iis2mdc -R 10 -I start

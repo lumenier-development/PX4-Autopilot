@@ -1,0 +1,7 @@
+#!/bin/sh
+#
+# Lumenier LUX H743 V2 - NDAA specific board extras init
+#------------------------------------------------------------------------------
+
+# DShot telemetry is always on UART8
+dshot telemetry /dev/ttyS6
