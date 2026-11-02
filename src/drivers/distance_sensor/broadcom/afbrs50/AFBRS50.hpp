@@ -93,6 +93,7 @@ private:
 	float _current_distance{0};
 	int8_t _current_quality{0};
 	float _max_distance{30.f};
+	bool _keep_mode_dfm{false};
 	int _current_rate{0};
 
 	hrt_abstime _trigger_time{0};

@@ -143,11 +143,18 @@ int AFBRS50::init()
 	static constexpr uint32_t SPI_BAUD_RATE = 5000000;
 	S2PI_Init(BROADCOM_AFBR_S50_S2PI_SPI_BUS, SPI_BAUD_RATE);
 
-	// Initialize device with initial mode
-	status_t status = Argus_InitMode(_hnd, BROADCOM_AFBR_S50_S2PI_SPI_BUS, argusModeFromParameter());
+	// A negative SENS_AFBR_MODE selects the module's default measurement mode.
+	status_t status;
+
+	if (_p_sens_afbr_mode.get() < 0) {
+		status = Argus_Init(_hnd, BROADCOM_AFBR_S50_S2PI_SPI_BUS);
+
+	} else {
+		status = Argus_InitMode(_hnd, BROADCOM_AFBR_S50_S2PI_SPI_BUS, argusModeFromParameter());
+	}
 
 	if (status != STATUS_OK) {
-		PX4_ERR("Argus_InitMode failed: %ld", status);
+		PX4_ERR("Argus_Init failed: %ld", status);
 		return PX4_ERROR;
 	}
 
@@ -156,11 +163,9 @@ int AFBRS50::init()
 	uint8_t a = (value >> 24) & 0xFFU;
 	uint8_t b = (value >> 16) & 0xFFU;
 	uint8_t c = value & 0xFFFFU;
-	// Packed Argus_GetAPIVersion() is major.minor.bugfix only; 1.6.6.1 is the vendored release.
-	static constexpr uint8_t api_version_patch{1};
 	const char *build = Argus_GetBuildNumber();
-	PX4_INFO("AFBR-S50 Chip ID: %u, API Version: v%d.%d.%d.%u (%s)",
-		 (uint)id, a, b, c, api_version_patch, build != nullptr ? build : ARGUS_API_VERSION_BUILD);
+	PX4_INFO("AFBR-S50 Chip ID: %u, API Version: v%d.%d.%d (%s)",
+		 (uint)id, a, b, c, build != nullptr ? build : ARGUS_API_VERSION_BUILD);
 
 	char module_string[20] = {};
 	argus_module_version_t mv = Argus_GetModuleVersion(_hnd);
@@ -208,11 +213,42 @@ int AFBRS50::init()
 		snprintf(module_string, sizeof(module_string), "AFBR-S50SV85K");
 		break;
 
+#if ARGUS_API_VERSION >= MAKE_VERSION(1, 7, 0)
+
+	case AFBR_S50EX85D_V1:
+		// Single-pixel extra long range module: reports 0.6 m to 100 m with a 2 degree beam.
+		// Its measurement mode owns the dual frequency setting, so the driver leaves DFM alone.
+		min_distance = 0.6f;
+		max_distance = 100.f;
+		fov_degrees = 2.f;
+		_keep_mode_dfm = true;
+		snprintf(module_string, sizeof(module_string), "AFBR-S50EX85D");
+		break;
+#endif
+
 	default:
 		break;
 	}
 
 	PX4_INFO("Module: %s", module_string);
+
+	argus_mode_t mode;
+	argus_dfm_mode_t dfm;
+	uint32_t frame_time_us = 0;
+
+	if (Argus_GetMeasurementMode(_hnd, &mode) == STATUS_OK
+	    && Argus_GetConfigurationDFMMode(_hnd, &dfm) == STATUS_OK
+	    && Argus_GetConfigurationFrameTime(_hnd, &frame_time_us) == STATUS_OK) {
+#if ARGUS_API_VERSION >= MAKE_VERSION(1, 7, 0)
+		uint32_t range_mm = 0;
+		Argus_GetConfigurationMeasurementRange(_hnd, &range_mm);
+		PX4_INFO("Mode: %s, DFM: %d, frame time: %lu us, max range: %lu mm",
+			 Argus_GetMeasurementModeName(mode), (int)dfm, (unsigned long)frame_time_us, (unsigned long)range_mm);
+#else
+		PX4_INFO("Mode: 0x%02x, DFM: %d, frame time: %lu us", (unsigned)mode, (int)dfm, (unsigned long)frame_time_us);
+#endif
+	}
+
 	_max_distance = max_distance;
 	_px4_rangefinder.set_min_distance(min_distance);
 	_px4_rangefinder.set_max_distance(max_distance);
@@ -388,24 +424,29 @@ status_t AFBRS50::setRateAndDfm(uint32_t rate_hz, argus_dfm_mode_t dfm_mode)
 		px4_usleep(1_ms);
 	}
 
-	status_t status = Argus_SetConfigurationDFMMode(_hnd, dfm_mode);
+	status_t status = STATUS_OK;
 
-	if (status != STATUS_OK) {
-		PX4_ERR("Argus_SetConfigurationDFMMode status not okay: %i", (int)status);
-		return status;
-	}
+	// Modules whose measurement mode owns the DFM setting keep the library default.
+	if (!_keep_mode_dfm) {
+		status = Argus_SetConfigurationDFMMode(_hnd, dfm_mode);
 
-	argus_dfm_mode_t result_mode;
-	status = Argus_GetConfigurationDFMMode(_hnd, &result_mode);
+		if (status != STATUS_OK) {
+			PX4_ERR("Argus_SetConfigurationDFMMode status not okay: %i", (int)status);
+			return status;
+		}
 
-	if (status != STATUS_OK) {
-		PX4_ERR("Argus_GetConfigurationDFMMode status not okay: %i", (int)status);
-		return status;
-	}
+		argus_dfm_mode_t result_mode;
+		status = Argus_GetConfigurationDFMMode(_hnd, &result_mode);
 
-	if (result_mode != dfm_mode) {
-		PX4_ERR("Argus_SetConfigurationDFMMode failed: %i", (int)status);
-		return status;
+		if (status != STATUS_OK) {
+			PX4_ERR("Argus_GetConfigurationDFMMode status not okay: %i", (int)status);
+			return status;
+		}
+
+		if (result_mode != dfm_mode) {
+			PX4_ERR("Argus_SetConfigurationDFMMode failed: %i", (int)status);
+			return status;
+		}
 	}
 
 	status = Argus_SetConfigurationFrameTime(_hnd, (1000000 / rate_hz));
@@ -434,7 +475,7 @@ argus_mode_t AFBRS50::argusModeFromParameter()
 	int32_t mode_param = _p_sens_afbr_mode.get();
 	argus_mode_t mode = ARGUS_MODE_SHORT_RANGE;
 
-	if (mode_param < 0 || mode_param > 3) {
+	if (mode_param < 0 || mode_param > 6) {
 		PX4_ERR("Invalid mode parameter: %li", mode_param);
 		return mode;
 	}
@@ -455,6 +496,27 @@ argus_mode_t AFBRS50::argusModeFromParameter()
 	case 3:
 		mode = ARGUS_MODE_HIGH_SPEED_LONG_RANGE;
 		break;
+
+	case 4:
+		mode = ARGUS_MODE_HIGH_PRECISION_SHORT_RANGE;
+		break;
+
+#if ARGUS_API_VERSION >= MAKE_VERSION(1, 7, 0)
+
+	case 5:
+		mode = ARGUS_MODE_BACKGROUND_SUPPRESSION_SHORT_RANGE;
+		break;
+
+	case 6:
+		mode = ARGUS_MODE_EXTENDED_LONG_RANGE;
+		break;
+#else
+
+	case 5:
+	case 6:
+		PX4_ERR("SENS_AFBR_MODE %li needs Broadcom API 1.7, using short range", mode_param);
+		break;
+#endif
 
 	default:
 		break;

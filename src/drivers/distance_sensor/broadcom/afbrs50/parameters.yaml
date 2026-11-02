@@ -5,17 +5,23 @@ parameters:
     SENS_AFBR_MODE:
       description:
         short: AFBR Rangefinder Mode
-        long: This parameter defines the mode of the AFBR Rangefinder.
+        long: This parameter defines the mode of the AFBR Rangefinder. -1 uses the
+          measurement mode the module's firmware library selects for the fitted
+          module. Modes 5 and 6 need Broadcom API 1.7 or newer.
       type: enum
       values:
+        -1: Module Default Mode
         0: Short Range Mode
         1: Long Range Mode
         2: High Speed Short Range Mode
         3: High Speed Long Range Mode
-      default: 0
+        4: High Precision Short Range Mode
+        5: Background Suppression Short Range Mode
+        6: Extended Long Range Mode
+      default: -1
       reboot_required: true
-      min: 0
-      max: 3
+      min: -1
+      max: 6
     SENS_AFBR_S_RATE:
       description:
         short: AFBR Rangefinder Short Range Rate
