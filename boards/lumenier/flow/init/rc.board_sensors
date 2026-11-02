@@ -7,7 +7,8 @@ param set-default IMU_GYRO_RATEMAX 1000
 param set-default SENS_FLOW_RATE 150
 param set-default SENS_IMU_CLPNOTI 0
 
-param set-default SENS_AFBR_S_RATE 25
+# AFBR-S50EX85D: extended long range at a static 10 Hz (lower rates give more range)
+param set-default SENS_AFBR_S_RATE 10
 param set-default SENS_AFBR_L_RATE 10
 param set-default SENS_AFBR_THRESH 8
 param set-default SENS_AFBR_HYSTER 2
