@@ -31,8 +31,25 @@
 #
 ############################################################################
 
+# The vendored Broadcom SDK (Inc/, Lib/) is the public release. A newer SDK that
+# is not public yet, such as the one the AFBR-S50EX85D needs, is supplied at build
+# time instead of being added to the tree: point AFBR_SDK_DIR at the SDK's
+# AFBR-S50 directory (the one holding Include/ and Lib/), either in the
+# environment when the build directory is first configured or as a CMake cache
+# variable. The driver's optional features are selected by ARGUS_API_VERSION.
+set(AFBR_SDK_DIR "$ENV{AFBR_SDK_DIR}" CACHE PATH "External Broadcom AFBR-S50 SDK directory (optional)")
+
+if(AFBR_SDK_DIR)
+	set(AFBR_INCLUDE_DIR ${AFBR_SDK_DIR}/Include)
+	set(AFBR_LIBRARY ${AFBR_SDK_DIR}/Lib/libafbrs50_m4_fpu_os_nolog.a)
+	message(STATUS "afbrs50: using external Broadcom SDK at ${AFBR_SDK_DIR}")
+else()
+	set(AFBR_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Inc)
+	set(AFBR_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/Lib/libafbrs50_m4_fpu.a)
+endif()
+
 add_library(afbrs50_m4_fpu STATIC IMPORTED GLOBAL)
-set_property(TARGET afbrs50_m4_fpu PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/Lib/libafbrs50_m4_fpu.a)
+set_property(TARGET afbrs50_m4_fpu PROPERTY IMPORTED_LOCATION ${AFBR_LIBRARY})
 
 px4_add_module(
 	MODULE drivers__distance_sensor__afbrs50
@@ -42,7 +59,7 @@ px4_add_module(
 		4096
 	INCLUDES
 		API/Inc
-		Inc
+		${AFBR_INCLUDE_DIR}
 	SRCS
 		AFBRS50.cpp
 		AFBRS50.hpp
