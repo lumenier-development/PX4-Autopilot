@@ -58,7 +58,7 @@
 #include <uORB/topics/launch_detection_status.h>
 #include <uORB/topics/mavlink_log.h>
 #include <uORB/topics/parameter_update.h>
-#include <uORB/topics/position_setpoint.h>
+#include <uORB/topics/position_setpoint_triplet.h>
 #include <uORB/Publication.hpp>
 #include <uORB/PublicationMulti.hpp>
 #include <uORB/topics/tecs_status.h>
@@ -132,7 +132,7 @@ private:
 	uORB::Subscription _vehicle_local_position_sub{ORB_ID(vehicle_local_position)};
 	uORB::Subscription _vehicle_status_sub{ORB_ID(vehicle_status)};
 	uORB::Subscription _vehicle_rates_setpoint_sub{ORB_ID(vehicle_rates_setpoint)};
-	uORB::Subscription _position_setpoint_sub{ORB_ID(position_setpoint)};
+	uORB::Subscription _position_setpoint_triplet_sub{ORB_ID(position_setpoint_triplet)};
 	uORB::Subscription _launch_detection_status_sub{ORB_ID(launch_detection_status)};
 	uORB::SubscriptionMultiArray<airspeed_s, MAX_NUM_AIRSPEED_SENSORS> _airspeed_subs{ORB_ID::airspeed};
 	uORB::SubscriptionData<flight_phase_estimation_s> _flight_phase_estimation_sub{ORB_ID(flight_phase_estimation)};
@@ -145,7 +145,7 @@ private:
 	vehicle_land_detected_s _vehicle_land_detected {};
 	vehicle_local_position_s _vehicle_local_position {};
 	vehicle_status_s _vehicle_status {};
-	position_setpoint_s _position_setpoint {};
+	position_setpoint_triplet_s _position_setpoint_triplet {};
 
 	WindEstimator	_wind_estimator_sideslip; /**< wind estimator instance only fusing sideslip */
 	airspeed_wind_s _wind_estimate_sideslip {}; /**< wind estimate message for wind estimator instance only fusing sideslip */
@@ -316,7 +316,6 @@ AirspeedModule::init()
 
 		if (_airspeed_subs[i].copy(&airspeed)) {
 			_airspeed_device_id[i] = airspeed.device_id;
-			_time_last_airspeed_update[i] = _time_now_usec;
 		}
 	}
 
@@ -362,6 +361,10 @@ AirspeedModule::check_for_connected_airspeed_sensors()
 		for (int i = 0; i < _airspeed_subs.size(); i++) {
 			if (!_airspeed_subs[i].advertised()) {
 				break;
+			}
+
+			if (i >= _number_of_airspeed_sensors) {
+				_time_last_airspeed_update[i] = _time_now_usec; // newly detected: start stale-data timeout now
 			}
 
 			detected_airspeed_sensors = i + 1;
@@ -424,7 +427,7 @@ AirspeedModule::Run()
 		// and wind estimate isn't accurate anymore. Even better would be to have a reliable "ground_contact" detection
 		// for fixed-wing landings.
 		const bool in_air_fixed_wing = !_vehicle_land_detected.landed &&
-					       _position_setpoint.type != position_setpoint_s::SETPOINT_TYPE_LAND &&
+					       _position_setpoint_triplet.current.type != position_setpoint_s::SETPOINT_TYPE_LAND &&
 					       _vehicle_status.vehicle_type == vehicle_status_s::VEHICLE_TYPE_FIXED_WING;
 
 		const matrix::Vector3f vI(_vehicle_local_position.vx, _vehicle_local_position.vy, _vehicle_local_position.vz);
@@ -687,7 +690,7 @@ void AirspeedModule::poll_topics()
 	_vehicle_land_detected_sub.update(&_vehicle_land_detected);
 	_vehicle_status_sub.update(&_vehicle_status);
 	_vehicle_local_position_sub.update(&_vehicle_local_position);
-	_position_setpoint_sub.update(&_position_setpoint);
+	_position_setpoint_triplet_sub.update(&_position_setpoint_triplet);
 
 	_tecs_status_sub.update(&_tecs_status);
 
@@ -849,6 +852,9 @@ void AirspeedModule::select_airspeed_and_publish()
 			mavlink_log_info(&_mavlink_log_pub, "Airspeed estimation valid\t");
 			events::send(events::ID("airspeed_selector_estimation_valid"), events::Log::Info,
 				     "Airspeed estimation valid");
+
+		} else if (_prev_airspeed_src == AirspeedSource::DISABLED && airspeed_sensor_added) {
+			// sensor detected after boot, nothing to report
 
 		} else {
 			mavlink_log_critical(&_mavlink_log_pub, "Airspeed sensor healthy, start using again (%i, %i)\t", prev_airspeed_index,
