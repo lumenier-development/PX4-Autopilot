@@ -70,6 +70,11 @@
 #define BROADCOM_AFBR_S50_S2PI_MOSI /* PB15 */  GPIO_SPI2_MOSI_1
 #define BROADCOM_AFBR_S50_S2PI_MISO /* PB14 */  GPIO_SPI2_MISO_1
 
+/* Keep the last 4 KB of console output in RAM. The node normally runs without a
+ * serial console attached, so the boot log can be read back over SWD instead. */
+#define BOARD_ENABLE_CONSOLE_BUFFER
+#define BOARD_CONSOLE_BUFFER_SIZE (1024*4)
+
 #define BOARD_HAS_CONTROL_STATUS_LEDS      1
 #define BOARD_OVERLOAD_LED     LED_RED
 #define BOARD_ARMED_STATE_LED  LED_BLUE
