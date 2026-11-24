@@ -40,6 +40,8 @@ using namespace time_literals;
 namespace internal_combustion_engine_control
 {
 
+ModuleBase::Descriptor InternalCombustionEngineControl::desc{task_spawn, custom_command, print_usage};
+
 InternalCombustionEngineControl::InternalCombustionEngineControl() :
 	ModuleParams(nullptr),
 	ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::lp_default)
@@ -62,8 +64,8 @@ int InternalCombustionEngineControl::task_spawn(int argc, char *argv[])
 		return -1;
 	}
 
-	_object.store(obj);
-	_task_id = task_id_is_work_queue;
+	desc.object.store(obj);
+	desc.task_id = task_id_is_work_queue;
 
 	/* Schedule a cycle to start things. */
 	obj->start();
@@ -80,7 +82,7 @@ void InternalCombustionEngineControl::Run()
 {
 	if (should_exit()) {
 		ScheduleClear();
-		exit_and_cleanup();
+		exit_and_cleanup(desc);
 	}
 
 	// check for parameter updates
@@ -91,7 +93,16 @@ void InternalCombustionEngineControl::Run()
 
 		// update parameters from storage
 		updateParams();
+		// Set up slew rate
 		_throttle_control_slew_rate.setSlewRate(_param_ice_thr_slew.get());
+		// Set up idle PID controller
+		const float idle_rpm = _param_ice_idle_rpm.get();
+		_rpm_idle_pid.setSetpoint(idle_rpm);
+		_rpm_idle_pid.setGains(_param_ice_idle_rpm_p.get() * 1e-3f, _param_ice_idle_rpm_i.get() * 1e-3f, 0.f);
+		// Feed-forward maps the RPM setpoint to the base idle throttle, so FF = idle_thr at the setpoint
+		_rpm_idle_pid.setFeedForwardGain(idle_rpm > FLT_EPSILON ? _param_ice_idle_thr_ff.get() / idle_rpm : 0.f);
+		_rpm_idle_pid.setIntegralLimit(1.f);
+		_rpm_idle_pid.setOutputLimit(0.f, 1.f);
 	}
 
 
@@ -108,27 +119,38 @@ void InternalCombustionEngineControl::Run()
 
 	const hrt_abstime now = hrt_absolute_time();
 
-	UserOnOffRequest user_request = UserOnOffRequest::Off;
+	rpmSubUpdate(now);
 
 	switch (static_cast<ICESource>(_param_ice_on_source.get())) {
 	case ICESource::ArmingState: {
-			if (vehicle_status.arming_state == vehicle_status_s::ARMING_STATE_ARMED) {
-				user_request = UserOnOffRequest::On;
-			}
+			_user_request = vehicle_status.arming_state == vehicle_status_s::ARMING_STATE_ARMED ? UserOnOffRequest::On :
+					UserOnOffRequest::Off;
 		}
 		break;
 
 	case ICESource::Aux1: {
 			if (manual_control_setpoint.aux1 > 0.5f) {
-				user_request = UserOnOffRequest::On;
+				_user_request = UserOnOffRequest::On;
+
+			} else if (manual_control_setpoint.aux1 < -0.5f) {
+				_user_request = UserOnOffRequest::Off;
 			}
 		}
 		break;
 
 	case ICESource::Aux2: {
 			if (manual_control_setpoint.aux2 > 0.5f) {
-				user_request = UserOnOffRequest::On;
+				_user_request = UserOnOffRequest::On;
+
+			} else if (manual_control_setpoint.aux2 < -0.5f) {
+				_user_request = UserOnOffRequest::Off;
 			}
+		}
+		break;
+
+	case ICESource::VtolStatus: {
+			_user_request = (vehicle_status.vehicle_type == vehicle_status_s::VEHICLE_TYPE_FIXED_WING
+					 || vehicle_status.in_transition_to_fw) ? UserOnOffRequest::On : UserOnOffRequest::Off;
 		}
 		break;
 	}
@@ -137,7 +159,7 @@ void InternalCombustionEngineControl::Run()
 	case State::Stopped: {
 			controlEngineStop();
 
-			if (user_request == UserOnOffRequest::On && !maximumAttemptsReached()) {
+			if (_user_request == UserOnOffRequest::On && !maximumAttemptsReached()) {
 
 				_state = State::Starting;
 				_state_start_time = now;
@@ -148,18 +170,18 @@ void InternalCombustionEngineControl::Run()
 
 	case State::Starting: {
 
-			if (user_request == UserOnOffRequest::Off) {
+			if (_user_request == UserOnOffRequest::Off) {
 				_state = State::Stopped;
 				_starting_retry_cycle = 0;
 				PX4_INFO("ICE: Stopped");
 
 			} else {
 
-				switch (_starting_sub_state) {
+				switch (_sub_state) {
 				case SubState::Rest: {
 						if (isStartingPermitted(now)) {
 							_state_start_time = now;
-							_starting_sub_state = SubState::Run;
+							_sub_state = SubState::Run;
 						}
 					}
 					break;
@@ -168,8 +190,9 @@ void InternalCombustionEngineControl::Run()
 				default: {
 						controlEngineStartup(now);
 
-						if (isEngineRunning(now)) {
+						if (_is_engine_running) {
 							_state = State::Running;
+							_rpm_idle_pid.resetIntegral();
 							PX4_INFO("ICE: Starting finished");
 
 						} else {
@@ -180,7 +203,7 @@ void InternalCombustionEngineControl::Run()
 
 							} else if (!isStartingPermitted(now)) {
 								controlEngineStop();
-								_starting_sub_state = SubState::Rest;
+								_sub_state = SubState::Rest;
 							}
 						}
 
@@ -194,21 +217,43 @@ void InternalCombustionEngineControl::Run()
 		break;
 
 	case State::Running: {
-			controlEngineRunning(throttle_in);
 
-			if (user_request == UserOnOffRequest::Off) {
+			// enter idle state if the RPM governor is enabled and either the throttle is zero or the RPM is below the idle setpoint
+			const bool rpm_governor_enabled = _param_ice_idle_rpm.get() > FLT_EPSILON;
+			const bool zero_throttle = throttle_in < .02f || !PX4_ISFINITE(throttle_in);
+			const bool rpm_below_min = _rpm_estimate < _param_ice_idle_rpm.get();
+
+			if (_sub_state != SubState::Idle && rpm_governor_enabled && (zero_throttle || rpm_below_min)) {
+				_sub_state = SubState::Idle;
+				// Seed the PID timestamp so the first idle step gets a near-zero dt instead
+				// of a stale-timestamp spike in the integrator
+				_timestamp_last_idle_throttle_update = now;
+			}
+
+			if (_sub_state == SubState::Idle && throttle_in > _idle_throttle) {
+				_sub_state = SubState::Run;
+			}
+
+			if (_sub_state == SubState::Idle) {
+				controlEngineIdle(now);
+
+			} else {
+				controlEngineRunning(throttle_in);
+			}
+
+			if (_user_request == UserOnOffRequest::Off) {
 				_state = State::Stopped;
 				_starting_retry_cycle = 0;
 				PX4_INFO("ICE: Stopped");
 
-			} else if (!isEngineRunning(now) && _param_ice_running_fault_detection.get()) {
+			} else if (!_is_engine_running && _param_ice_running_fault_detection.get()) {
 				// without RPM feedback we assume the engine is running after the
 				// starting procedure but only switch state if fault detection is enabled
 				_state = State::Starting;
 				_state_start_time = now;
 				_starting_retry_cycle = 0;
 				PX4_WARN("ICE: Running Fault detected");
-				events::send(events::ID("internal_combustion_engine_control_fault"), events::Log::Critical,
+				events::send(events::ID("internal_combustion_engine_running_fault"), events::Log::Critical,
 					     "IC engine fault detected");
 			}
 		}
@@ -217,7 +262,7 @@ void InternalCombustionEngineControl::Run()
 
 	case State::Fault: {
 
-			if (user_request == UserOnOffRequest::Off) {
+			if (_user_request == UserOnOffRequest::Off) {
 				_state = State::Stopped;
 				_starting_retry_cycle = 0;
 				PX4_INFO("ICE: Stopped");
@@ -243,10 +288,10 @@ void InternalCombustionEngineControl::Run()
 		_throttle_control_slew_rate.setForcedValue(0.f);
 	}
 
-	publishControl(now, user_request);
+	publishControl(now);
 }
 
-void InternalCombustionEngineControl::publishControl(const hrt_abstime now, const UserOnOffRequest user_request)
+void InternalCombustionEngineControl::publishControl(const hrt_abstime now)
 {
 	internal_combustion_engine_control_s ice_control{};
 	ice_control.timestamp = now;
@@ -254,27 +299,41 @@ void InternalCombustionEngineControl::publishControl(const hrt_abstime now, cons
 	ice_control.ignition_on = _ignition_on;
 	ice_control.starter_engine_control = _starter_engine_control;
 	ice_control.throttle_control = _throttle_control;
-	ice_control.user_request = static_cast<uint8_t>(user_request);
+	ice_control.user_request = static_cast<uint8_t>(_user_request);
 	_internal_combustion_engine_control_pub.publish(ice_control);
 
 	internal_combustion_engine_status_s ice_status;
 	ice_status.state = static_cast<uint8_t>(_state);
+	ice_status.substate = static_cast<uint8_t>(_sub_state);
 	ice_status.timestamp = now;
+	ice_status.pid_idle_rpm_integral = _rpm_idle_pid.getIntegral();
 	_internal_combustion_engine_status_pub.publish(ice_status);
 }
 
-bool InternalCombustionEngineControl::isEngineRunning(const hrt_abstime now)
+void InternalCombustionEngineControl::rpmSubUpdate(const hrt_abstime now)
 {
 	rpm_s rpm;
 
-	if (_rpm_sub.copy(&rpm)) {
-		const hrt_abstime rpm_timestamp = rpm.timestamp;
+	if (_rpm_sub.update(&rpm)) {
+		_rpm_timestamp = rpm.timestamp;
+		_rpm_estimate = rpm.rpm_estimate;
 
-		return (_param_ice_min_run_rpm.get() > FLT_EPSILON && (now < rpm_timestamp + 2_s)
-			&& rpm.rpm_estimate > _param_ice_min_run_rpm.get());
+		_is_engine_running =
+			(_param_ice_min_run_rpm.get() > FLT_EPSILON &&
+			 (now < _rpm_timestamp + 2_s) && _rpm_estimate > _param_ice_min_run_rpm.get());
 	}
+}
 
-	return false;
+void InternalCombustionEngineControl::controlEngineIdle(const hrt_abstime now)
+{
+	const float dt = math::min((now - _timestamp_last_idle_throttle_update) * 1e-6f, 1.f);
+	_idle_throttle = _rpm_idle_pid.update(_rpm_estimate, dt, true);
+	_timestamp_last_idle_throttle_update = now;
+
+	_ignition_on = true;
+	_choke_control = 0.f;
+	_starter_engine_control = 0.f;
+	_throttle_control = _idle_throttle;
 }
 
 void InternalCombustionEngineControl::controlEngineRunning(float throttle_in)
@@ -283,7 +342,6 @@ void InternalCombustionEngineControl::controlEngineRunning(float throttle_in)
 	_choke_control = 0.f;
 	_starter_engine_control = 0.f;
 	_throttle_control = throttle_in;
-
 }
 
 void InternalCombustionEngineControl::controlEngineStop()
@@ -414,7 +472,7 @@ The architecture is as shown below:
 
 extern "C" __EXPORT int internal_combustion_engine_control_main(int argc, char *argv[])
 {
-	return InternalCombustionEngineControl::main(argc, argv);
+	return ModuleBase::main(InternalCombustionEngineControl::desc, argc, argv);
 }
 
 } // namespace internal_combustion_engine_control

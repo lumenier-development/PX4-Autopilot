@@ -133,7 +133,7 @@ __EXPORT void board_peripheral_reset(int ms)
 __EXPORT void board_on_reset(int status)
 {
 	for (int i = 0; i < DIRECT_PWM_OUTPUT_CHANNELS; ++i) {
-		px4_arch_configgpio(PX4_MAKE_GPIO_INPUT(io_timer_channel_get_gpio_output(i)));
+		px4_arch_configgpio(io_timer_channel_get_gpio_output(i));
 	}
 
 	/*
@@ -298,7 +298,7 @@ void imxrt_flexio_clocking(void)
 
 	/* Set PLL3 PFD2 to 480 * 18 / CONFIG_PLL3_PFD2_FRAC */
 
-	reg |= ((uint32_t)(CONFIG_PLL3_PFD2_FRAC) << CCM_ANALOG_PFD_480_PFD3_FRAC_SHIFT);
+	reg |= ((uint32_t)(CONFIG_PLL3_PFD2_FRAC) << CCM_ANALOG_PFD_480_PFD2_FRAC_SHIFT);
 
 	putreg32(reg, IMXRT_CCM_ANALOG_PFD_480);
 

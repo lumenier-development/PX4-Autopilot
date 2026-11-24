@@ -110,6 +110,12 @@ public:
 	uint8_t priority() const { return _priority; }
 
 	/**
+	 * Set the priority of this validator without new data
+	 * @param priority	the new priority, 0 excludes the sensor from selection
+	 */
+	void set_priority(uint8_t priority) { _priority = priority; }
+
+	/**
 	 * Get the error state of this validator
 	 * @return		the bitmask with the error status
 	 */
@@ -152,6 +158,13 @@ public:
 	 * @return The timeout interval in microseconds
 	 */
 	uint32_t get_timeout() const { return _timeout_interval; }
+
+	/**
+	 * Get the equal count threshold
+	 *
+	 * @return The number of equal values before considering the sensor stale
+	 */
+	uint32_t get_equal_value_threshold() const { return _value_equal_count_threshold; }
 
 	/**
 	 * Data validator error states

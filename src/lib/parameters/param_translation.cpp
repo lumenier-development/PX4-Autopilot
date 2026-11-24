@@ -34,6 +34,7 @@
 #include "param_translation.h"
 
 
+#include <inttypes.h>
 #include <px4_platform_common/log.h>
 #include <lib/drivers/device/Device.hpp>
 #include <drivers/drv_sensor.h>
@@ -159,6 +160,185 @@ param_modify_on_import_ret param_modify_on_import(bson_node_t node)
 				int32_t sdlog_backend_val = 0;
 				param_set(param_find("SDLOG_BACKEND"), &sdlog_backend_val);
 				PX4_INFO("migrating %s -> %s", "SDLOG_MODE", "SDLOG_BACKEND");
+			}
+		}
+	}
+
+	// 2025-11-17: translate MNT_RANGE_PITCH to MNT_MAX_PITCH, MNT_MIN_PITCH
+	{
+		if (strcmp("MNT_RANGE_PITCH", node->name) == 0) {
+			if (node->d > DBL_EPSILON) {
+				float mnt_max_pitch = static_cast<float>(node->d) * 0.5f;
+				float mnt_min_pitch = static_cast<float>(-node->d) * 0.5f;
+				param_set(param_find("MNT_MAX_PITCH"), &mnt_max_pitch);
+				param_set(param_find("MNT_MIN_PITCH"), &mnt_min_pitch);
+				PX4_INFO("migrating %s -> %s, %s", "MNT_RANGE_PITCH", "MNT_MAX_PITCH", "MNT_MIN_PITCH");
+			}
+
+		}
+	}
+
+	// 2026-03-11: translate EKF2_GPS_POS_X/Y/Z -> SENS_GPS0_OFFX/OFFY/OFFZ
+	{
+		if (strcmp("EKF2_GPS_POS_X", node->name) == 0) {
+			strcpy(node->name, "SENS_GPS0_OFFX");
+			PX4_INFO("migrating %s -> %s", "EKF2_GPS_POS_X", "SENS_GPS0_OFFX");
+			return param_modify_on_import_ret::PARAM_MODIFIED;
+		}
+
+		if (strcmp("EKF2_GPS_POS_Y", node->name) == 0) {
+			strcpy(node->name, "SENS_GPS0_OFFY");
+			PX4_INFO("migrating %s -> %s", "EKF2_GPS_POS_Y", "SENS_GPS0_OFFY");
+			return param_modify_on_import_ret::PARAM_MODIFIED;
+		}
+
+		if (strcmp("EKF2_GPS_POS_Z", node->name) == 0) {
+			strcpy(node->name, "SENS_GPS0_OFFZ");
+			PX4_INFO("migrating %s -> %s", "EKF2_GPS_POS_Z", "SENS_GPS0_OFFZ");
+			return param_modify_on_import_ret::PARAM_MODIFIED;
+		}
+	}
+
+	// 2026-03-11: translate EKF2_GPS_DELAY to SENS_GPS0_DELAY and SENS_GPS1_DELAY
+	{
+		if (strcmp("EKF2_GPS_DELAY", node->name) == 0) {
+			int32_t delay_ms = static_cast<int32_t>(node->d);
+			param_set(param_find("SENS_GPS0_DELAY"), &delay_ms);
+			param_set(param_find("SENS_GPS1_DELAY"), &delay_ms);
+			PX4_INFO("migrating %s -> %s, %s", "EKF2_GPS_DELAY", "SENS_GPS0_DELAY", "SENS_GPS1_DELAY");
+		}
+	}
+
+	// 2026-03-11: translate MOT_POLE_COUNT to per-motor DSHOT_MOT_POL1-12
+	{
+		if ((node->type == bson_type_t::BSON_INT32) && (strcmp("MOT_POLE_COUNT", node->name) == 0)) {
+			for (int i = 1; i <= 12; i++) {
+				char name[20];
+				snprintf(name, sizeof(name), "DSHOT_MOT_POL%d", i);
+				param_set(param_find(name), &node->i32);
+			}
+
+			PX4_INFO("migrating %s -> DSHOT_MOT_POL1-12 (value=%" PRId32 ")", "MOT_POLE_COUNT", node->i32);
+			return param_modify_on_import_ret::PARAM_SKIP_IMPORT;
+		}
+	}
+
+	// 2026-03-19: translate EKF2_ENGINE_WRM to EKF2_POS_LOCK
+	{
+		if (strcmp("EKF2_ENGINE_WRM", node->name) == 0) {
+			int32_t delay_ms = static_cast<int32_t>(node->d);
+			param_set(param_find("EKF2_POS_LOCK"), &delay_ms);
+			PX4_INFO("migrating %s -> %s", "EKF2_ENGINE_WRM", "EKF2_POS_LOCK");
+			return param_modify_on_import_ret::PARAM_SKIP_IMPORT;
+		}
+	}
+
+	// 2026-03-19: translate RC*_REV from float to int32
+	{
+		if ((node->type == bson_type_t::BSON_DOUBLE) && (strncmp("RC", node->name, 2) == 0)
+		    && strstr(node->name, "_REV") != nullptr) {
+			node->i32 = (node->d < 0.0) ? -1 : 1;
+			node->type = bson_type_t::BSON_INT32;
+			PX4_INFO("migrating %s from float to int32", node->name);
+			return param_modify_on_import_ret::PARAM_MODIFIED;
+		}
+	}
+
+	// 2026-06-12: merge COM_RC_OVERRIDE + COM_RC_STICK_OV into MAN_OVERRIDE_SPD
+	{
+		if ((node->type == bson_type_t::BSON_INT32) && (strcmp("COM_RC_OVERRIDE", node->name) == 0) && (node->i32 == 0)) {
+			node->d = -1.0;
+			node->type = bson_type_t::BSON_DOUBLE;
+			strcpy(node->name, "MAN_OVERRIDE_SPD");
+			PX4_INFO("migrating %s -> %s (disabled)", "COM_RC_OVERRIDE", "MAN_OVERRIDE_SPD");
+			return param_modify_on_import_ret::PARAM_MODIFIED;
+		}
+	}
+
+	// 2026-06-22: translate HEATER*_IMU_ID to HEATER*_SENS_ID
+	//	HEATER_MAX_INSTANCES == 3 (in heater.h)
+	{
+		if ((node->type == bson_type_t::BSON_INT32) && (strncmp("HEATER", node->name, 6) == 0)
+		    && strstr(node->name, "_IMU_ID") != nullptr) {
+			char old_name[BSON_MAXNAME];
+			strncpy(old_name, node->name, sizeof(old_name));
+			char new_name[16];
+			snprintf(new_name, sizeof(new_name), "HEATER%c_SENS_ID", node->name[6]);
+			strcpy(node->name, new_name);
+			PX4_INFO("migrating %s -> %s", old_name, new_name);
+			return param_modify_on_import_ret::PARAM_MODIFIED;
+		}
+	}
+
+	// 2026-10-20: the single heater's SENS_* parameters became those of heater instance 1
+	{
+		static constexpr const char *kRenames[][2] {
+			{"SENS_IMU_TEMP", "HEATER1_TEMP"},
+			{"SENS_IMU_TEMP_FF", "HEATER1_TEMP_FF"},
+			{"SENS_IMU_TEMP_I", "HEATER1_TEMP_I"},
+			{"SENS_IMU_TEMP_P", "HEATER1_TEMP_P"},
+		};
+
+		for (const auto &rename : kRenames) {
+			if (strcmp(rename[0], node->name) == 0) {
+				strcpy(node->name, rename[1]);
+				PX4_INFO("migrating %s -> %s", rename[0], rename[1]);
+				return param_modify_on_import_ret::PARAM_MODIFIED;
+			}
+		}
+
+		// SENS_TEMP_ID 0 kept the heater from starting, while HEATER1_SENS_ID 0 selects a sensor and -1 disables it
+		if ((node->type == bson_type_t::BSON_INT32) && (strcmp("SENS_TEMP_ID", node->name) == 0)) {
+			if (node->i32 == 0) {
+				node->i32 = -1;
+			}
+
+			strcpy(node->name, "HEATER1_SENS_ID");
+			PX4_INFO("migrating %s -> %s", "SENS_TEMP_ID", "HEATER1_SENS_ID");
+			return param_modify_on_import_ret::PARAM_MODIFIED;
+		}
+	}
+
+	// 2026-06-29: MPC_LAND_RC_HELP replaced by the MPC_AUTO_NUDGING bitmask (landing nudging = bit 1).
+	// The old in-Hold yaw nudge is not migrated; it now lives in bit 0 (yaw nudging in all auto modes).
+	{
+		if ((node->type == bson_type_t::BSON_INT32) && (strcmp("MPC_LAND_RC_HELP", node->name) == 0)) {
+			if (node->i32 != 0) {
+				int32_t nudging = 0;
+				param_get(param_find("MPC_AUTO_NUDGING"), &nudging);
+				nudging |= (1 << 1);
+				param_set(param_find("MPC_AUTO_NUDGING"), &nudging);
+			}
+
+			PX4_INFO("migrating MPC_LAND_RC_HELP -> MPC_AUTO_NUDGING bit 1 (value=%" PRId32 ")", node->i32);
+			return param_modify_on_import_ret::PARAM_SKIP_IMPORT;
+		}
+	}
+
+	// 2026-10-20: the auxiliary global position parameters became per-source EKF2_AGP<n>_* parameters, so the single
+	// source configured before goes to the first slot. That slot is only used once EKF2_AGP0_ID is set to the source's id.
+	// v1.17 messages had none, but a v1.17 source now arrives with id 1 either way: the message translation node assigns
+	// it, and it is GlobalPositionMeasurementInterface's default.
+	{
+		if ((node->type == bson_type_t::BSON_INT32) && (strcmp("EKF2_AGP_CTRL", node->name) == 0) && (node->i32 != 0)) {
+			const int32_t agp_id = 1;
+			param_set(param_find("EKF2_AGP0_ID"), &agp_id);
+			PX4_INFO("setting EKF2_AGP0_ID to %" PRId32, agp_id);
+		}
+
+		static constexpr const char *kRenames[][2] {
+			{"EKF2_AGP_CTRL", "EKF2_AGP0_CTRL"},
+			{"EKF2_AGP_MODE", "EKF2_AGP0_MODE"},
+			{"EKF2_AGP_DELAY", "EKF2_AGP0_DELAY"},
+			{"EKF2_AGP_NOISE", "EKF2_AGP0_NOISE"},
+			{"EKF2_AGP_GATE", "EKF2_AGP0_GATE"},
+		};
+
+		for (const auto &rename : kRenames) {
+			if (strcmp(rename[0], node->name) == 0) {
+				strcpy(node->name, rename[1]);
+				PX4_INFO("migrating %s -> %s", rename[0], rename[1]);
+				return param_modify_on_import_ret::PARAM_MODIFIED;
 			}
 		}
 	}

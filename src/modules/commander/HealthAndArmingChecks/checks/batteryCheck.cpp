@@ -131,8 +131,11 @@ void BatteryChecks::checkAndReport(const Context &context, Report &reporter)
 				mavlink_log_critical(reporter.mavlink_log_pub(), "Battery %i disconnected\t", index + 1);
 			}
 
-			// trigger a battery failsafe action if a battery disconnects in flight
-			worst_warning = battery_status_s::WARNING_CRITICAL;
+			// trigger a battery failsafe action if a battery disconnects in flight, without hiding a
+			// worse warning from another battery
+			if (worst_warning < battery_status_s::WARNING_CRITICAL) {
+				worst_warning = battery_status_s::WARNING_CRITICAL;
+			}
 		}
 
 		if (battery.connected) {
@@ -211,13 +214,13 @@ void BatteryChecks::checkAndReport(const Context &context, Report &reporter)
 			// This is declared critical so QGC displays a yellow box and reads "low battery" out loud making the user aware
 
 			/* EVENT
-			* @description
-			* The lowest battery state of charge is below the low threshold.
-			*
-			* <profile name="dev">
-			* Can be configured with <param>BAT_LOW_THR</param>.
-			* </profile>
-			*/
+			 * @description
+			 * The lowest battery state of charge is below the low threshold.
+			 *
+			 * <profile name="dev">
+			 * Can be configured with <param>BAT_LOW_THR</param>.
+			 * </profile>
+			 */
 			reporter.armingCheckFailure(affected_modes, health_component_t::battery, events::ID("check_battery_low"),
 						    events::Log::Critical, "Low battery");
 
@@ -229,13 +232,13 @@ void BatteryChecks::checkAndReport(const Context &context, Report &reporter)
 
 		case battery_status_s::WARNING_CRITICAL:
 			/* EVENT
-			* @description
-			* The lowest battery state of charge is below the critical threshold.
-			*
-			* <profile name="dev">
-			* Can be configured with <param>BAT_CRIT_THR</param> and from when to disalow arming with <param>COM_ARM_BAT_MIN</param>.
-			* </profile>
-			*/
+			 * @description
+			 * The lowest battery state of charge is below the critical threshold.
+			 *
+			 * <profile name="dev">
+			 * Can be configured with <param>BAT_CRIT_THR</param> and from when to disalow arming with <param>COM_ARM_BAT_MIN</param>.
+			 * </profile>
+			 */
 			reporter.armingCheckFailure(affected_modes, health_component_t::battery, events::ID("check_battery_critical"),
 						    events::Log::Critical, "Critical battery");
 
@@ -247,13 +250,13 @@ void BatteryChecks::checkAndReport(const Context &context, Report &reporter)
 
 		case battery_status_s::WARNING_EMERGENCY:
 			/* EVENT
-			* @description
-			* The lowest battery state of charge is below the emergency threshold.
-			*
-			* <profile name="dev">
-			* Can be configured with <param>BAT_EMERGEN_THR</param>.
-			* </profile>
-			*/
+			 * @description
+			 * The lowest battery state of charge is below the emergency threshold.
+			 *
+			 * <profile name="dev">
+			 * Can be configured with <param>BAT_EMERGEN_THR</param>.
+			 * </profile>
+			 */
 			reporter.armingCheckFailure(affected_modes, health_component_t::battery, events::ID("check_battery_emergency"),
 						    events::Log::Emergency, "Emergency battery level");
 
@@ -314,8 +317,13 @@ void BatteryChecks::rtlEstimateCheck(const Context &context, Report &reporter, f
 			&& rtl_time_estimate.safe_time_estimate * hysteresis_factor >= worst_battery_time_s;
 
 
+	// Every COM_LOW_BAT_ACT option at least warns on low remaining flight time (distance-aware return options return)
 	if (reporter.failsafeFlags().battery_low_remaining_time) {
 		/* EVENT
+		 * @description
+		 * <profile name="dev">
+		 * The action (warning or distance-aware return) can be configured via <param>COM_LOW_BAT_ACT</param> parameter.
+		 * </profile>
 		 */
 		reporter.armingCheckFailure(NavModes::All, health_component_t::battery, events::ID("check_battery_rem_flight_time_low"),
 					    events::Log::Error, "Remaining flight time low");

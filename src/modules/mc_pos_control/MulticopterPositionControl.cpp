@@ -41,6 +41,8 @@
 
 using namespace matrix;
 
+ModuleBase::Descriptor MulticopterPositionControl::desc{task_spawn, custom_command, print_usage};
+
 MulticopterPositionControl::MulticopterPositionControl(bool vtol) :
 	ModuleParams(nullptr),
 	ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::nav_and_controllers),
@@ -93,24 +95,18 @@ void MulticopterPositionControl::parameters_update(bool force)
 			_vel_z_notch_filter.disable();
 		}
 
-		// velocity xy/z low pass filter
-		if (_param_mpc_vel_lp.get() > 0.f) {
-			_vel_xy_lp_filter.setCutoffFreq(sample_freq_hz, _param_mpc_vel_lp.get());
-			_vel_z_lp_filter.setCutoffFreq(sample_freq_hz, _param_mpc_vel_lp.get());
-
-		} else {
-			// disable filtering
+		// velocity xy/z low pass filter, unfiltered when the cutoff is not achievable
+		if (!((_param_mpc_vel_lp.get() > 0.f)
+		      && _vel_xy_lp_filter.setCutoffFreq(sample_freq_hz, _param_mpc_vel_lp.get())
+		      && _vel_z_lp_filter.setCutoffFreq(sample_freq_hz, _param_mpc_vel_lp.get()))) {
 			_vel_xy_lp_filter.setAlpha(1.f);
 			_vel_z_lp_filter.setAlpha(1.f);
 		}
 
-		// velocity derivative xy/z low pass filter
-		if (_param_mpc_veld_lp.get() > 0.f) {
-			_vel_deriv_xy_lp_filter.setCutoffFreq(sample_freq_hz, _param_mpc_veld_lp.get());
-			_vel_deriv_z_lp_filter.setCutoffFreq(sample_freq_hz, _param_mpc_veld_lp.get());
-
-		} else {
-			// disable filtering
+		// velocity derivative xy/z low pass filter, unfiltered when the cutoff is not achievable
+		if (!((_param_mpc_veld_lp.get() > 0.f)
+		      && _vel_deriv_xy_lp_filter.setCutoffFreq(sample_freq_hz, _param_mpc_veld_lp.get())
+		      && _vel_deriv_z_lp_filter.setCutoffFreq(sample_freq_hz, _param_mpc_veld_lp.get()))) {
 			_vel_deriv_xy_lp_filter.setAlpha(1.f);
 			_vel_deriv_z_lp_filter.setAlpha(1.f);
 		}
@@ -292,7 +288,7 @@ void MulticopterPositionControl::parameters_update(bool force)
 					    "Hover thrust has been constrained by min/max thrust", _param_mpc_thr_hover.get());
 		}
 
-		if (!_param_mpc_use_hte.get() || !_hover_thrust_initialized) {
+		if (!_hover_thrust_initialized) {
 			_control.setHoverThrust(_param_mpc_thr_hover.get());
 			_hover_thrust_initialized = true;
 		}
@@ -379,7 +375,7 @@ void MulticopterPositionControl::Run()
 {
 	if (should_exit()) {
 		_local_pos_sub.unregisterCallback();
-		exit_and_cleanup();
+		exit_and_cleanup(desc);
 		return;
 	}
 
@@ -401,23 +397,24 @@ void MulticopterPositionControl::Run()
 		if (_vehicle_control_mode_sub.updated()) {
 			const bool previous_position_control_enabled = _vehicle_control_mode.flag_multicopter_position_control_enabled;
 
-			if (_vehicle_control_mode_sub.update(&_vehicle_control_mode)) {
+			if (_vehicle_control_mode_sub.copy(&_vehicle_control_mode)) {
 				if (!previous_position_control_enabled && _vehicle_control_mode.flag_multicopter_position_control_enabled) {
 					_time_position_control_enabled = _vehicle_control_mode.timestamp;
 
 				} else if (previous_position_control_enabled && !_vehicle_control_mode.flag_multicopter_position_control_enabled) {
 					// clear existing setpoint when controller is no longer active
 					_setpoint = PositionControl::empty_trajectory_setpoint;
+					_control.setInputSetpoint(_setpoint);
 				}
 			}
 		}
 
 		_vehicle_land_detected_sub.update(&_vehicle_land_detected);
 
-		if (_param_mpc_use_hte.get()) {
+		if (_hover_thrust_estimate_sub.updated()) {
 			hover_thrust_estimate_s hte;
 
-			if (_hover_thrust_estimate_sub.update(&hte)) {
+			if (_hover_thrust_estimate_sub.copy(&hte)) {
 				if (hte.valid) {
 					_control.updateHoverThrust(hte.hover_thrust);
 				}
@@ -432,7 +429,7 @@ void MulticopterPositionControl::Run()
 						  && !_trajectory_setpoint_sub.updated();
 
 		if (_goto_control.checkForSetpoint(vehicle_local_position.timestamp_sample, goto_setpoint_enable)) {
-			_goto_control.update(dt, states.position, states.yaw);
+			_goto_control.update(dt, states.position, states.velocity, states.acceleration, states.yaw);
 		}
 
 		_trajectory_setpoint_sub.update(&_setpoint);
@@ -742,8 +739,8 @@ int MulticopterPositionControl::task_spawn(int argc, char *argv[])
 	MulticopterPositionControl *instance = new MulticopterPositionControl(vtol);
 
 	if (instance) {
-		_object.store(instance);
-		_task_id = task_id_is_work_queue;
+		desc.object.store(instance);
+		desc.task_id = task_id_is_work_queue;
 
 		if (instance->init()) {
 			return PX4_OK;
@@ -754,8 +751,8 @@ int MulticopterPositionControl::task_spawn(int argc, char *argv[])
 	}
 
 	delete instance;
-	_object.store(nullptr);
-	_task_id = -1;
+	desc.object.store(nullptr);
+	desc.task_id = -1;
 
 	return PX4_ERROR;
 }
@@ -792,5 +789,5 @@ logging.
 
 extern "C" __EXPORT int mc_pos_control_main(int argc, char *argv[])
 {
-	return MulticopterPositionControl::main(argc, argv);
+	return ModuleBase::main(MulticopterPositionControl::desc, argc, argv);
 }

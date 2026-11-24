@@ -1,10 +1,10 @@
 # Holybro H-RTK Unicore UM982 GPS
 
-The [Holybro H-RTK Unicore UM982 GPS](https://holybro.com/products/h-rtk-um982) is an multi-band high-precision [RTK GNSS System](../gps_compass/rtk_gps.md) launched by Holybro.
+The [Holybro H-RTK Unicore UM982 GPS](https://holybro.com/products/h-rtk-unicore-um982) is an multi-band high-precision [RTK GNSS System](../gps_compass/rtk_gps.md) launched by Holybro.
 
 ![HB-pmw3901-1](../../assets/hardware/gps/holybro-unicore-um982/holybro-unicore-um982-1.jpg)
 
-This module is based on the [Unicore UM982 Chip](https://en.unicorecomm.com/products/detail/24), which supports RTK positioning and dual-antenna heading calculation.
+This module is based on the [Unicore UM982 Chip](https://en.unicore.com/products/um982/), which supports RTK positioning and dual-antenna heading calculation.
 
 This means that it can generate a moving baseline headline/yaw determinations for autopilots with just one GPS module and dual antennas - a magnetometer is not needed.
 Unlike when using a module such as the U-blox F9P, where you would need [two U-blox F9P modules to compute a heading angle](../gps_compass/u-blox_f9p_heading.md), with the Unicore UM982 GPS, you only need one GPS module!
@@ -20,14 +20,14 @@ Additional technical information can be found at [Holybro Technical Documentatio
 
 ## Where to Buy
 
-- [Holybro Website](https://holybro.com/products/h-rtk-um982)
+- [Holybro Website](https://holybro.com/products/h-rtk-unicore-um982)
 
 ## Wiring
 
 The module comes with both GH 10-pin & 6-pin cables that are compatible with the GPS1 & GPS2 ports on flight controllers that use the [Pixhawk Connector Standard](https://github.com/pixhawk/Pixhawk-Standards/blob/master/DS-009%20Pixhawk%20Connector%20Standard.pdf), such as [Pixhawk 6x](../flight_controller/pixhawk6x.md) and [Pixhawk 6c](../flight_controller/pixhawk6c.md).
 
-It can also be used with Cubepilot Flight Controller.
-The 10Pin - 6Pin cable allows users to connect the UM982 to `GPS2` port on Cubepilot and Holybro Autopilots.
+It can also be used with CubePilot Flight Controller.
+The 10Pin - 6Pin cable allows users to connect the UM982 to `GPS2` port on CubePilot and Holybro Autopilots.
 
 The module can be used with one antenna or both antennas.
 If it is used with only one antenna, the right/primary antenna connector must be connected.

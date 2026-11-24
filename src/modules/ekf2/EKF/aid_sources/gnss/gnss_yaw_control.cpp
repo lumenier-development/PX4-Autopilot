@@ -65,10 +65,17 @@ void Ekf::controlGnssYawFusion(const gnssSample &gnss_sample)
 		const bool is_gnss_yaw_data_intermittent = !isNewestSampleRecent(_time_last_gnss_yaw_buffer_push,
 				2 * GNSS_YAW_MAX_INTERVAL);
 
+		// A receiver still resolving its baseline can report a heading with an accuracy of tens of degrees. Starting may
+		// reset yaw to it, so hold it to the bar the yaw estimator must meet before a reset. Not every receiver reports an
+		// accuracy.
+		const bool is_gnss_yaw_accurate = !PX4_ISFINITE(gnss_sample.yaw_acc)
+						  || (gnss_sample.yaw_acc < _params.EKFGSF_yaw_err_max);
+
 		const bool starting_conditions_passing = continuing_conditions_passing
 				&& _gnss_checks.passed()
 				&& !is_gnss_yaw_data_intermittent
-				&& !_gps_intermittent;
+				&& !_gps_intermittent
+				&& is_gnss_yaw_accurate;
 
 		if (_control_status.flags.gnss_yaw) {
 			if (continuing_conditions_passing) {
@@ -159,7 +166,6 @@ void Ekf::fuseGnssYaw(float antenna_yaw_offset)
 	auto &aid_src = _aid_src_gnss_yaw;
 
 	if (aid_src.innovation_rejected) {
-		_innov_check_fail_status.flags.reject_yaw = true;
 		return;
 	}
 
@@ -189,7 +195,6 @@ void Ekf::fuseGnssYaw(float antenna_yaw_offset)
 	}
 
 	_fault_status.flags.bad_hdg = false;
-	_innov_check_fail_status.flags.reject_yaw = false;
 
 	if ((fabsf(aid_src.test_ratio_filtered) > 0.2f)
 	    && !_control_status.flags.in_air && isTimedOut(aid_src.time_last_fuse, (uint64_t)1e6)
@@ -227,7 +232,9 @@ bool Ekf::resetYawToGnss(const float gnss_yaw, const float gnss_yaw_offset)
 	// GNSS yaw measurement is already compensated for antenna offset in the driver
 	const float measured_yaw = gnss_yaw;
 
-	const float yaw_variance = sq(fmaxf(_params.gnss_heading_noise, 1.e-2f));
+	// Take the variance updateGnssYaw() derived from this sample's reported accuracy, so the reset is no more confident
+	// than the measurement
+	const float yaw_variance = fmaxf(_aid_src_gnss_yaw.observation_variance, sq(1.e-2f));
 	resetQuatStateYaw(measured_yaw, yaw_variance);
 
 	return true;

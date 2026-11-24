@@ -51,8 +51,8 @@
 # define debug(fmt, args...)		do { } while(0)
 #endif
 
-#define CODER_CHECK(_c)		do { if (_c->dead) { PX4_ERR("coder dead"); return -1; }} while(0)
-#define CODER_KILL(_c, _reason)	do { PX4_ERR("killed: %s", _reason); _c->dead = true; return -1; } while(0)
+#define CODER_CHECK(_c)		do { if ((_c)->dead) { PX4_ERR("coder dead"); return -1; }} while(0)
+#define CODER_KILL(_c, _reason)	do { PX4_ERR("killed: %s", _reason); (_c)->dead = true; return -1; } while(0)
 
 static int
 read_x(bson_decoder_t decoder, void *p, size_t s)
@@ -129,6 +129,11 @@ bson_decoder_init_file(bson_decoder_t decoder, int fd, bson_decoder_callback cal
 
 	debug("total document size = %" PRIi32, decoder->total_document_size);
 
+	// The length is signed and comes from the document itself
+	if (decoder->total_document_size < 0) {
+		CODER_KILL(decoder, "negative document length");
+	}
+
 	/* ready for decoding */
 	return 0;
 }
@@ -168,6 +173,12 @@ bson_decoder_init_buf(bson_decoder_t decoder, void *buf, unsigned bufsize, bson_
 	}
 
 	debug("total document size = %" PRIi32, decoder->total_document_size);
+
+	// A negative length would skip the size check below, which only rejects lengths above
+	// the buffer
+	if (decoder->total_document_size < 0) {
+		CODER_KILL(decoder, "negative document length");
+	}
 
 	if ((decoder->total_document_size > 0) && (decoder->total_document_size > (int)decoder->bufsize)) {
 		CODER_KILL(decoder, "document length larger than buffer");

@@ -5,21 +5,19 @@ This enables easier testing of [safety failsafe](../config/safety.md) behaviour,
 
 Failure injection is disabled by default, and can be enabled using the [SYS_FAILURE_EN](../advanced_config/parameter_reference.md#SYS_FAILURE_EN) parameter.
 
-:::warning
-Failure injection still in development.
-На момент написання (PX4 v1.14):
+Failure injection must also be be supported by the current simulator, and the set of supported failures is simulator-dependent.
 
-- Support may vary by failure type and between simulatiors and real vehicle.
-- Потребує підтримки в симуляторі.
-  Це підтримується в Gazebo Classic
-- Багато типів відмов не широко реалізовані.
-  У таких випадках команда повернеться з повідомленням "unsupported".
+:::info
+PX4 may accept a command to set a particular failure mode even it that mode is not supported by your simulator.
 
+All [MAV_CMD_INJECT_FAILURE](https://mavlink.io/en/messages/common.html#MAV_CMD_INJECT_FAILURE) commands are handled internally by the failure-injection module, which acknowledges each command and republishes the active failures for the sensor/actuator simulators to apply.
+The failure-injection module will NACK the command with [MAV_RESULT_UNSUPPORTED](https://mavlink.io/en/messages/common.html#MAV_RESULT_UNSUPPORTED) for failure combinations that are not implemented by PX4 or any simulator.
+However it the module will accept (respond with [MAV_MISSION_ACCEPTED](https://mavlink.io/en/messages/common.html#MAV_MISSION_ACCEPTED)) for any other failure-type, even if it is not supported by your _particular_ simulator.
 :::
 
 ## Команда системи збою
 
-Failures can be injected using the [failure system command](../modules/modules_command.md#failure) from any PX4 console/shell, specifying both the target and type of the failure.
+Failures can be injected using the [failure system command](../modules/modules_command.md#failure) from any PX4 [console/shell](../debug/consoles.md) (such as the [QGC MAVLink Console](../debug/mavlink_shell.md#qgroundcontrol-mavlink-console) or SITL _pxh shell_), specifying both the target and type of the failure.
 
 ### Синтаксис
 
@@ -61,20 +59,9 @@ failure <component> <failure_type> [-i <instance_number>]
 - _instance number_ (optional): Instance number of affected sensor.
   0 (за замовчуванням) вказує на всі сенсори вказаного типу.
 
-### Example
-
-Щоб симулювати втрату сигналу RC без вимкнення вашого пульта керування RC:
-
-1. Enable the parameter [SYS_FAILURE_EN](../advanced_config/parameter_reference.md#SYS_FAILURE_EN). And specifically to turn off motors also [CA_FAILURE_MODE](../advanced_config/parameter_reference.md#CA_FAILURE_MODE).
-2. Enter the following commands on the MAVLink console or SITL _pxh shell_:
-
-   ```sh
-   # Fail RC (turn publishing off)
-   failure rc_signal off
-
-   # Restart RC publishing
-   failure rc_signal ok
-   ```
+:::info
+The simulated GPS (SITL) implements only the `off`, `stuck`, and `wrong` failure modes; the other failure types have no effect on it.
+:::
 
 ## MAVSDK відлагоджувальний плагін
 
@@ -82,3 +69,34 @@ The [MAVSDK failure plugin](https://mavsdk.mavlink.io/main/en/cpp/api_reference/
 It is used in [PX4 Integration Testing](../test_and_ci/integration_testing_mavsdk.md) to simulate failure cases (for example, see [PX4-Autopilot/test/mavsdk_tests/autopilot_tester.cpp](https://github.com/PX4/PX4-Autopilot/blob/main/test/mavsdk_tests/autopilot_tester.cpp)).
 
 API плагіна - це пряме відображення команди збою, показаної вище, з деякими додатковими сигналами про помилки, пов'язані з підключенням.
+
+## Example: GPS
+
+To test the GPS failsafe by stopping GPS:
+
+1. Enable the [SYS_FAILURE_EN](../advanced_config/parameter_reference.md#SYS_FAILURE_EN) parameter.
+2. Enter the following commands on the MAVLink console or SITL _pxh shell_:
+
+   ```sh
+   # Stop GPS publishing
+   failure gps off
+
+   # Restart GPS publishing
+   failure gps ok
+   ```
+
+## Example: Motor
+
+To stop a motor mid-flight without the system anticipating it or excluding it from allocation effectiveness:
+
+1. Enable the [SYS_FAILURE_EN](../advanced_config/parameter_reference.md#SYS_FAILURE_EN) parameter.
+2. Enable [CA_FAILURE_MODE](../advanced_config/parameter_reference.md#CA_FAILURE_MODE) parameter to allow turning off motors.
+3. Enter the following commands on the MAVLink console or SITL _pxh shell_:
+
+   ```sh
+   # Turn off first motor
+   failure motor off -i 1
+
+   # Turn it back on
+   failure motor ok -i 1
+   ```

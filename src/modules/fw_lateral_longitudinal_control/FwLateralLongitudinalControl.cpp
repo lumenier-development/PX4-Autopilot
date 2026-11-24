@@ -43,6 +43,8 @@ using matrix::Eulerf;
 using matrix::Quatf;
 using matrix::Vector2f;
 
+ModuleBase::Descriptor FwLateralLongitudinalControl::desc{task_spawn, custom_command, print_usage};
+
 // [m/s] maximum reference altitude rate threshhold
 static constexpr float MAX_ALT_REF_RATE_FOR_LEVEL_FLIGHT = 0.1f;
 // [us] time after which the wind estimate is disabled if no longer updating
@@ -70,11 +72,15 @@ FwLateralLongitudinalControl::FwLateralLongitudinalControl(bool is_vtol) :
 	_attitude_sp_pub(is_vtol ? ORB_ID(fw_virtual_attitude_setpoint) : ORB_ID(vehicle_attitude_setpoint)),
 	_loop_perf(perf_alloc(PC_ELAPSED, MODULE_NAME": cycle"))
 {
+	_attitude_sp_pub.advertise();
 	_tecs_status_pub.advertise();
 	_flight_phase_estimation_pub.advertise();
 	_fixed_wing_lateral_status_pub.advertise();
 	parameters_update();
 	_airspeed_slew_rate_controller.setSlewRate(ASPD_SP_SLEW_RATE);
+
+	_tecs_alt_time_const_slew_rate.setSlewRate(TECS_ALT_TIME_CONST_SLEW_RATE);
+	_tecs_alt_time_const_slew_rate.setForcedValue(_param_fw_t_h_error_tc.get() * _param_fw_thrtc_sc.get());
 }
 
 FwLateralLongitudinalControl::~FwLateralLongitudinalControl()
@@ -92,7 +98,6 @@ FwLateralLongitudinalControl::parameters_update()
 	_tecs.set_max_sink_rate(_param_fw_t_sink_max.get());
 	_tecs.set_min_sink_rate(_performance_model.getMinimumSinkRate(_air_density));
 	_tecs.set_equivalent_airspeed_trim(_performance_model.getCalibratedTrimAirspeed());
-	_tecs.set_equivalent_airspeed_min(_performance_model.getMinimumCalibratedAirspeed(getLoadFactor(), _flaps_setpoint));
 	_tecs.set_equivalent_airspeed_max(_performance_model.getMaximumCalibratedAirspeed());
 	_tecs.set_throttle_damp(_param_fw_t_thr_damping.get());
 	_tecs.set_integrator_gain_throttle(_param_fw_t_thr_integ.get());
@@ -107,14 +112,8 @@ FwLateralLongitudinalControl::parameters_update()
 	_tecs.set_airspeed_error_time_constant(_param_fw_t_tas_error_tc.get());
 	_tecs.set_ste_rate_time_const(_param_ste_rate_time_const.get());
 	_tecs.set_seb_rate_ff_gain(_param_seb_rate_ff.get());
-	_tecs.set_airspeed_measurement_std_dev(_param_speed_standard_dev.get());
-	_tecs.set_airspeed_rate_measurement_std_dev(_param_speed_rate_standard_dev.get());
-	_tecs.set_airspeed_filter_process_std_dev(_param_process_noise_standard_dev.get());
 
 	_roll_slew_rate.setSlewRate(radians(_param_fw_pn_r_slew_max.get()));
-
-	_tecs_alt_time_const_slew_rate.setSlewRate(TECS_ALT_TIME_CONST_SLEW_RATE);
-	_tecs_alt_time_const_slew_rate.setForcedValue(_param_fw_t_h_error_tc.get() * _param_fw_thrtc_sc.get());
 
 	_airspeed_direction_control.setPGainFromPeriodAndDamping(_param_npfg_damping.get(), _param_npfg_period.get());
 }
@@ -123,7 +122,7 @@ void FwLateralLongitudinalControl::Run()
 {
 	if (should_exit()) {
 		_local_pos_sub.unregisterCallback();
-		exit_and_cleanup();
+		exit_and_cleanup(desc);
 		return;
 	}
 
@@ -142,11 +141,12 @@ void FwLateralLongitudinalControl::Run()
 
 	if (_local_pos_sub.update(&_local_pos)) {
 
-		const float control_interval = math::constrain((_local_pos.timestamp - _last_time_loop_ran) * 1e-6f,
-					       0.001f, 0.1f);
-		_last_time_loop_ran = _local_pos.timestamp;
+		const hrt_abstime now = _local_pos.timestamp_sample;
 
-		updateControllerConfiguration();
+		const float control_interval = math::constrain((now - _last_time_loop_ran) * 1e-6f, 0.001f, 0.1f);
+		_last_time_loop_ran = now;
+
+		updateControllerConfiguration(now);
 
 		_tecs.set_speed_weight(_long_configuration.speed_weight);
 		updateTECSAltitudeTimeConstant(checkLowHeightConditions()
@@ -166,7 +166,7 @@ void FwLateralLongitudinalControl::Run()
 			_landed = landed.landed;
 		}
 
-		_flight_phase_estimation_pub.get().flight_phase = flight_phase_estimation_s::FLIGHT_PHASE_UNKNOWN;
+		uint8_t current_flight_phase = flight_phase_estimation_s::FLIGHT_PHASE_UNKNOWN;
 
 		_vehicle_status_sub.update();
 		_control_mode_sub.update();
@@ -177,7 +177,7 @@ void FwLateralLongitudinalControl::Run()
 			_flaps_setpoint = flaps_setpoint.normalized_setpoint;
 		}
 
-		update_control_state();
+		update_control_state(now);
 
 		if (_control_mode_sub.get().flag_control_manual_enabled && _control_mode_sub.get().flag_control_altitude_enabled
 		    && _local_pos.z_reset_counter != _z_reset_counter) {
@@ -189,7 +189,6 @@ void FwLateralLongitudinalControl::Run()
 
 		const bool should_run = (_control_mode_sub.get().flag_control_position_enabled ||
 					 _control_mode_sub.get().flag_control_velocity_enabled ||
-					 _control_mode_sub.get().flag_control_acceleration_enabled ||
 					 _control_mode_sub.get().flag_control_altitude_enabled ||
 					 _control_mode_sub.get().flag_control_climb_rate_enabled) &&
 					(_vehicle_status_sub.get().vehicle_type == vehicle_status_s::VEHICLE_TYPE_FIXED_WING
@@ -211,19 +210,25 @@ void FwLateralLongitudinalControl::Run()
 			// If the both altitude and height rate are set, set altitude setpoint to NAN
 			const float altitude_sp = PX4_ISFINITE(_long_control_sp.height_rate) ? NAN : _long_control_sp.altitude;
 
-			tecs_update_pitch_throttle(control_interval, altitude_sp,
-						   airspeed_sp_eas,
-						   _long_configuration.pitch_min,
-						   _long_configuration.pitch_max,
-						   _long_configuration.throttle_min,
-						   _long_configuration.throttle_max,
-						   _long_configuration.sink_rate_target,
-						   _long_configuration.climb_rate_target,
-						   _long_configuration.disable_underspeed_protection,
-						   _long_control_sp.height_rate
-						  );
+			current_flight_phase = tecs_update_pitch_throttle(
+						       control_interval, altitude_sp, airspeed_sp_eas,
+						       _long_configuration.pitch_min,
+						       _long_configuration.pitch_max,
+						       _long_configuration.throttle_min,
+						       _long_configuration.throttle_max,
+						       _long_configuration.sink_rate_target,
+						       _long_configuration.climb_rate_target,
+						       _long_configuration.disable_underspeed_protection,
+						       _long_control_sp.height_rate,
+						       now
+					       );
 
-			pitch_sp = PX4_ISFINITE(_long_control_sp.pitch_direct) ? _long_control_sp.pitch_direct : _tecs.get_pitch_setpoint();
+			// Trim pitch is subtracted before entering TECS (in tecs_update_pitch_throttle),
+			// so it has to be added back here.
+			pitch_sp = PX4_ISFINITE(_long_control_sp.pitch_direct)
+				   ?  _long_control_sp.pitch_direct
+				   : _tecs.get_pitch_setpoint() + radians(_param_fw_psp_off.get());
+
 			throttle_sp = PX4_ISFINITE(_long_control_sp.throttle_direct) ? _long_control_sp.throttle_direct :
 				      _tecs.get_throttle_setpoint();
 
@@ -280,13 +285,13 @@ void FwLateralLongitudinalControl::Run()
 				lateral_accel_sp = 0.f; // mitigation if no valid setpoint is received: 0 lateral acceleration
 			}
 
-			lateral_accel_sp = getCorrectedLateralAccelSetpoint(lateral_accel_sp);
+			lateral_accel_sp = getCorrectedLateralAccelSetpoint(lateral_accel_sp, now);
 			lateral_accel_sp = math::constrain(lateral_accel_sp, -_lateral_configuration.lateral_accel_max,
 							   _lateral_configuration.lateral_accel_max);
 			roll_sp = mapLateralAccelerationToRollAngle(lateral_accel_sp);
 
 			fixed_wing_lateral_status_s fixed_wing_lateral_status{};
-			fixed_wing_lateral_status.timestamp = hrt_absolute_time();
+			fixed_wing_lateral_status.timestamp = now;
 			fixed_wing_lateral_status.lateral_acceleration_setpoint = lateral_accel_sp;
 			fixed_wing_lateral_status.can_run_factor = _can_run_factor;
 
@@ -295,7 +300,7 @@ void FwLateralLongitudinalControl::Run()
 			// additional is_finite checks that should not be necessary, but are kept for safety
 			float roll_body = PX4_ISFINITE(roll_sp) ? roll_sp : 0.0f;
 			float pitch_body = PX4_ISFINITE(pitch_sp) ? pitch_sp : 0.0f;
-			const float yaw_body = _yaw; // yaw is not controlled in fixed wing, need to set it though for quaternion generation
+			float yaw_body = _yaw;
 			const float thrust_body_x = PX4_ISFINITE(throttle_sp) ? throttle_sp : 0.0f;
 
 			if (_control_mode_sub.get().flag_control_manual_enabled) {
@@ -308,7 +313,7 @@ void FwLateralLongitudinalControl::Run()
 			// roll slew rate
 			roll_body = _roll_slew_rate.update(roll_body, control_interval);
 
-			_att_sp.timestamp = hrt_absolute_time();
+			_att_sp.timestamp = now;
 			const Quatf q(Eulerf(roll_body, pitch_body, yaw_body));
 			q.copyTo(_att_sp.q_d);
 
@@ -318,22 +323,32 @@ void FwLateralLongitudinalControl::Run()
 
 		}
 
+		// Publish flight phase with low rate, but immediately if updated
+		const bool flight_phase_updated = current_flight_phase != _flight_phase_estimation_pub.get().flight_phase;
+		const hrt_abstime time_since_last_flightphase_pub = now - _flight_phase_estimation_pub.get().timestamp;
+
+		if (flight_phase_updated || time_since_last_flightphase_pub >= 1_s) {
+			_flight_phase_estimation_pub.get().timestamp = now;
+			_flight_phase_estimation_pub.get().flight_phase = current_flight_phase;
+			_flight_phase_estimation_pub.update();
+		}
+
 		_z_reset_counter = _local_pos.z_reset_counter;
 	}
 
 	perf_end(_loop_perf);
 }
 
-void FwLateralLongitudinalControl::updateControllerConfiguration()
+void FwLateralLongitudinalControl::updateControllerConfiguration(hrt_abstime timestamp)
 {
 	if (_lateral_configuration.timestamp == 0) {
-		_lateral_configuration.timestamp = _local_pos.timestamp;
+		_lateral_configuration.timestamp = timestamp;
 		_lateral_configuration.lateral_accel_max = tanf(radians(_param_fw_r_lim.get())) * CONSTANTS_ONE_G;
 
 	}
 
 	if (_long_configuration.timestamp == 0) {
-		setDefaultLongitudinalControlConfiguration();
+		setDefaultLongitudinalControlConfiguration(timestamp);
 	}
 
 	if (_long_control_configuration_sub.updated() || _parameter_update_sub.updated()) {
@@ -357,12 +372,12 @@ void FwLateralLongitudinalControl::updateControllerConfiguration()
 	}
 }
 
-void
+uint8_t
 FwLateralLongitudinalControl::tecs_update_pitch_throttle(const float control_interval, float alt_sp, float airspeed_sp,
 		float pitch_min_rad, float pitch_max_rad, float throttle_min,
 		float throttle_max, const float desired_max_sinkrate,
 		const float desired_max_climbrate,
-		bool disable_underspeed_detection, float hgt_rate_sp)
+		bool disable_underspeed_detection, float hgt_rate_sp, hrt_abstime now)
 {
 	bool tecs_is_running = true;
 
@@ -371,8 +386,7 @@ FwLateralLongitudinalControl::tecs_update_pitch_throttle(const float control_int
 	    && (_vehicle_status_sub.get().vehicle_type == vehicle_status_s::VEHICLE_TYPE_ROTARY_WING
 		|| _vehicle_status_sub.get().in_transition_mode)) {
 		tecs_is_running = false;
-		return;
-
+		return flight_phase_estimation_s::FLIGHT_PHASE_UNKNOWN;
 	}
 
 	const float throttle_trim_compensated = _performance_model.getTrimThrottle(throttle_min,
@@ -401,7 +415,7 @@ FwLateralLongitudinalControl::tecs_update_pitch_throttle(const float control_int
 		     _long_control_state.height_rate,
 		     hgt_rate_sp);
 
-	tecs_status_publish(alt_sp, airspeed_sp, airspeed_rate_estimate, throttle_trim_compensated);
+	tecs_status_publish(alt_sp, airspeed_sp, airspeed_rate_estimate, throttle_trim_compensated, now);
 
 	if (tecs_is_running && !_vehicle_status_sub.get().in_transition_mode
 	    && (_vehicle_status_sub.get().vehicle_type == vehicle_status_s::VEHICLE_TYPE_FIXED_WING)) {
@@ -410,25 +424,28 @@ FwLateralLongitudinalControl::tecs_update_pitch_throttle(const float control_int
 		// Check level flight: the height rate setpoint is not set or set to 0 and we are close to the target altitude and target altitude is not moving
 		if ((fabsf(tecs_output.height_rate_reference) < MAX_ALT_REF_RATE_FOR_LEVEL_FLIGHT) &&
 		    fabsf(_long_control_state.altitude_msl - tecs_output.altitude_reference) < _param_nav_fw_alt_rad.get()) {
-			_flight_phase_estimation_pub.get().flight_phase = flight_phase_estimation_s::FLIGHT_PHASE_LEVEL;
+			return flight_phase_estimation_s::FLIGHT_PHASE_LEVEL;
 
 		} else if (((tecs_output.altitude_reference - _long_control_state.altitude_msl) >= _param_nav_fw_alt_rad.get()) ||
 			   (tecs_output.height_rate_reference >= MAX_ALT_REF_RATE_FOR_LEVEL_FLIGHT)) {
-			_flight_phase_estimation_pub.get().flight_phase = flight_phase_estimation_s::FLIGHT_PHASE_CLIMB;
+			return flight_phase_estimation_s::FLIGHT_PHASE_CLIMB;
 
 		} else if (((_long_control_state.altitude_msl - tecs_output.altitude_reference) >= _param_nav_fw_alt_rad.get()) ||
 			   (tecs_output.height_rate_reference <= -MAX_ALT_REF_RATE_FOR_LEVEL_FLIGHT)) {
-			_flight_phase_estimation_pub.get().flight_phase = flight_phase_estimation_s::FLIGHT_PHASE_DESCEND;
+			return flight_phase_estimation_s::FLIGHT_PHASE_DESCEND;
 
 		} else {
-			//We can't infer the flight phase , do nothing, estimation is reset at each step
+			// We can't infer the flight phase
+			return flight_phase_estimation_s::FLIGHT_PHASE_UNKNOWN;
 		}
 	}
+
+	return flight_phase_estimation_s::FLIGHT_PHASE_UNKNOWN;
 }
 
 void
 FwLateralLongitudinalControl::tecs_status_publish(float alt_sp, float equivalent_airspeed_sp,
-		float true_airspeed_derivative_raw, float throttle_trim)
+		float true_airspeed_derivative_raw, float throttle_trim, hrt_abstime timestamp)
 {
 	tecs_status_s tecs_status{};
 
@@ -459,7 +476,7 @@ FwLateralLongitudinalControl::tecs_status_publish(float alt_sp, float equivalent
 	tecs_status.underspeed_ratio = _tecs.get_underspeed_ratio();
 	tecs_status.fast_descend_ratio = debug_output.fast_descend;
 
-	tecs_status.timestamp = hrt_absolute_time();
+	tecs_status.timestamp = timestamp;
 
 	_tecs_status_pub.publish(tecs_status);
 }
@@ -477,8 +494,8 @@ int FwLateralLongitudinalControl::task_spawn(int argc, char *argv[])
 	FwLateralLongitudinalControl *instance = new FwLateralLongitudinalControl(is_vtol);
 
 	if (instance) {
-		_object.store(instance);
-		_task_id = task_id_is_work_queue;
+		desc.object.store(instance);
+		desc.task_id = task_id_is_work_queue;
 
 		if (instance->init()) {
 			return PX4_OK;
@@ -489,8 +506,8 @@ int FwLateralLongitudinalControl::task_spawn(int argc, char *argv[])
 	}
 
 	delete instance;
-	_object.store(nullptr);
-	_task_id = -1;
+	desc.object.store(nullptr);
+	desc.task_id = -1;
 
 	return PX4_ERROR;
 }
@@ -532,16 +549,16 @@ fw_lat_lon_control computes attitude and throttle setpoints from lateral and lon
 	return 0;
 }
 
-void FwLateralLongitudinalControl::update_control_state() {
+void FwLateralLongitudinalControl::update_control_state(hrt_abstime now) {
 	updateAltitudeAndHeightRate();
 	updateAirspeed();
 	updateAttitude();
-	updateWind();
+	updateWind(now);
 
 	_lateral_control_state.ground_speed = Vector2f(_local_pos.vx, _local_pos.vy);
 }
 
-void FwLateralLongitudinalControl::updateWind() {
+void FwLateralLongitudinalControl::updateWind(hrt_abstime now) {
 	if (_wind_sub.updated()) {
 		wind_s wind{};
 		_wind_sub.update(&wind);
@@ -550,14 +567,14 @@ void FwLateralLongitudinalControl::updateWind() {
 		_wind_valid = PX4_ISFINITE(wind.windspeed_north)
 			      && PX4_ISFINITE(wind.windspeed_east);
 
-		_time_wind_last_received = hrt_absolute_time();
+		_time_wind_last_received = now;
 
 		_lateral_control_state.wind_speed(0) = wind.windspeed_north;
 		_lateral_control_state.wind_speed(1) = wind.windspeed_east;
 
 	} else {
 		// invalidate wind estimate usage (and correspondingly NPFG, if enabled) after subscription timeout
-		_wind_valid = _wind_valid && (hrt_absolute_time() - _time_wind_last_received) < WIND_EST_TIMEOUT;
+		_wind_valid = _wind_valid && (now - _time_wind_last_received) < WIND_EST_TIMEOUT;
 	}
 
 	if (!_wind_valid) {
@@ -594,9 +611,14 @@ void FwLateralLongitudinalControl::updateAttitude() {
 		_long_control_state.pitch_rad = euler_angles.theta();
 		_yaw = euler_angles.psi();
 
-		// load factor due to banking
-		const float load_factor_from_bank_angle = 1.0f / max(cosf(euler_angles.phi()), FLT_EPSILON);
-		_tecs.set_load_factor(load_factor_from_bank_angle);
+		_load_factor_from_bank_angle = 1.0f / max(cosf(euler_angles.phi()), FLT_EPSILON);
+
+		// Used to compensate for higher induced drag during banking
+		_tecs.set_load_factor(_load_factor_from_bank_angle);
+		// Used to give underspeed mitigation the correct minimum airspeed
+		_tecs.set_equivalent_airspeed_min(
+			_performance_model.getMinimumCalibratedAirspeed(_load_factor_from_bank_angle, _flaps_setpoint)
+		);
 	}
 }
 
@@ -613,7 +635,12 @@ void FwLateralLongitudinalControl::updateAirspeed() {
 
 			_time_airspeed_last_valid = airspeed_validated.timestamp;
 			_long_control_state.airspeed_eas = airspeed_validated.calibrated_airspeed_m_s;
-			_long_control_state.eas2tas = constrain(airspeed_validated.true_airspeed_m_s / airspeed_validated.calibrated_airspeed_m_s, 0.9f, 2.0f);
+
+			// before takeoff the ratio can be 0/0 = NaN, which constrain() passes through; keep the previous value then
+			if (fabsf(airspeed_validated.calibrated_airspeed_m_s) > FLT_EPSILON) {
+				_long_control_state.eas2tas = constrain(airspeed_validated.true_airspeed_m_s /
+									airspeed_validated.calibrated_airspeed_m_s, 0.9f, 2.0f);
+			}
 		}
 	}
 
@@ -631,7 +658,7 @@ float
 FwLateralLongitudinalControl::adapt_airspeed_setpoint(const float control_interval, float calibrated_airspeed_setpoint,
 		float calibrated_min_airspeed_guidance, float wind_speed)
 {
-	float system_min_airspeed = _performance_model.getMinimumCalibratedAirspeed(getLoadFactor(), _flaps_setpoint);
+	float system_min_airspeed = _performance_model.getMinimumCalibratedAirspeed(_load_factor_from_bank_angle, _flaps_setpoint);
 
 	const float system_max_airspeed = _performance_model.getMaximumCalibratedAirspeed();
 
@@ -727,7 +754,7 @@ float FwLateralLongitudinalControl::getGuidanceQualityFactor(const vehicle_local
 							    0.f, 1.f));
 
 	// Check that the angle between heading and track is not off too much. if it is greater than 90° we will be pushed back from the wind and the npfg will propably give a roll command in the wrong direction.
-	const Vector2f heading_vector(matrix::Dcm2f(local_pos.heading)*Vector2f({1.f, 0.f}));
+	const Vector2f heading_vector(matrix::Dcm2f(_yaw)*Vector2f({1.f, 0.f}));
 	const Vector2f ground_vel_norm(ground_vel.normalized());
 	const float flying_forward_factor(math::constrain((heading_vector.dot(ground_vel_norm) -
 							   COS_HEADING_TRACK_ANGLE_PUSHED_BACK) / ((COS_HEADING_TRACK_ANGLE_NOT_PUSHED_BACK -
@@ -736,32 +763,30 @@ float FwLateralLongitudinalControl::getGuidanceQualityFactor(const vehicle_local
 
 	return flying_forward_factor * low_ground_speed_factor;
 }
-float FwLateralLongitudinalControl::getCorrectedLateralAccelSetpoint(float lateral_accel_sp)
+float FwLateralLongitudinalControl::getCorrectedLateralAccelSetpoint(float lateral_accel_sp, hrt_abstime now)
 {
 	// Scale the npfg output to zero if npfg is not certain for correct output
 	_can_run_factor = math::constrain(getGuidanceQualityFactor(_local_pos, _wind_valid), 0.f, 1.f);
 
-	hrt_abstime now{hrt_absolute_time()};
-
 	// Warn the user when the scale is less than 90% for at least 2 seconds (disable in transition)
 
 	// If the npfg was not running before, reset the user warning variables.
-	if ((now - _time_since_last_npfg_call) > ROLL_WARNING_TIMEOUT) {
+	if ((now - _time_of_last_npfg_call) > ROLL_WARNING_TIMEOUT) {
 		_need_report_npfg_uncertain_condition = true;
-		_time_since_first_reduced_roll = 0U;
+		_time_of_first_reduced_roll = 0U;
 	}
 
 	if (_vehicle_status_sub.get().in_transition_mode || _can_run_factor > ROLL_WARNING_CAN_RUN_THRESHOLD || _landed) {
 		// NPFG reports a good condition or we are in transition, reset the user warning variables.
 		_need_report_npfg_uncertain_condition = true;
-		_time_since_first_reduced_roll = 0U;
+		_time_of_first_reduced_roll = 0U;
 
 	} else if (_need_report_npfg_uncertain_condition) {
-		if (_time_since_first_reduced_roll == 0U) {
-			_time_since_first_reduced_roll = now;
+		if (_time_of_first_reduced_roll == 0U) {
+			_time_of_first_reduced_roll = now;
 		}
 
-		if ((now - _time_since_first_reduced_roll) > ROLL_WARNING_TIMEOUT) {
+		if ((now - _time_of_first_reduced_roll) > ROLL_WARNING_TIMEOUT) {
 			_need_report_npfg_uncertain_condition = false;
 			events::send(events::ID("npfg_roll_command_uncertain"), events::Log::Warning,
 				     "Roll command reduced due to uncertain velocity/wind estimates!");
@@ -771,7 +796,7 @@ float FwLateralLongitudinalControl::getCorrectedLateralAccelSetpoint(float later
 		// Nothing to do, already reported.
 	}
 
-	_time_since_last_npfg_call = now;
+	_time_of_last_npfg_call = now;
 
 	return _can_run_factor * (lateral_accel_sp);
 }
@@ -779,8 +804,8 @@ float FwLateralLongitudinalControl::mapLateralAccelerationToRollAngle(float late
 	return  atanf(lateral_acceleration_sp / CONSTANTS_ONE_G);
 }
 
-void FwLateralLongitudinalControl::setDefaultLongitudinalControlConfiguration() {
-	_long_configuration.timestamp = hrt_absolute_time();
+void FwLateralLongitudinalControl::setDefaultLongitudinalControlConfiguration(hrt_abstime timestamp) {
+	_long_configuration.timestamp = timestamp;
 	_long_configuration.pitch_min = radians(_param_fw_p_lim_min.get());
 	_long_configuration.pitch_max = radians(_param_fw_p_lim_max.get());
 	_long_configuration.throttle_min = _param_fw_thr_min.get();
@@ -837,20 +862,7 @@ void FwLateralLongitudinalControl::updateLongitudinalControlConfiguration(const 
 	}
 }
 
-float FwLateralLongitudinalControl::getLoadFactor() const
-{
-	float load_factor_from_bank_angle = 1.f;
-
-	const float roll_body = Eulerf(Quatf(_att_sp.q_d)).phi();
-
-	if (PX4_ISFINITE(roll_body)) {
-		load_factor_from_bank_angle = 1.f / math::max(cosf(roll_body), FLT_EPSILON);
-	}
-
-	return load_factor_from_bank_angle;
-}
-
 extern "C" __EXPORT int fw_lat_lon_control_main(int argc, char *argv[])
 {
-	return FwLateralLongitudinalControl::main(argc, argv);
+	return ModuleBase::main(FwLateralLongitudinalControl::desc, argc, argv);
 }

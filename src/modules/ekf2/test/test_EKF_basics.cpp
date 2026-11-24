@@ -186,6 +186,39 @@ TEST_F(EkfBasicsTest, gpsFusion)
 	EXPECT_EQ(0, (int) _ekf->control_status_flags().synthetic_mag_z);
 }
 
+TEST_F(EkfBasicsTest, gravityIsStandardBeforeGlobalPosition)
+{
+	// GIVEN: an initialized EKF with IMU/baro/mag but NO GPS (no global position yet)
+	// THEN: the prediction gravity stays at the standard constant default
+	EXPECT_FLOAT_EQ(_ekf->getGravityMss(), CONSTANTS_ONE_G);
+}
+
+TEST_F(EkfBasicsTest, gravityStaysStandardNearEquator)
+{
+	// GIVEN: GPS fixed within 1 deg of the equator
+	_sensor_simulator.setGpsLatitude(0.5);
+	_sensor_simulator.startGps();
+	_sensor_simulator.runSeconds(11);
+
+	// THEN: GPS is fused but the latitude is within the recompute threshold of the
+	// 0-reference, so gravity remains the standard constant (matches legacy behavior)
+	ASSERT_EQ(1, (int) _ekf->control_status_flags().gnss_pos);
+	EXPECT_FLOAT_EQ(_ekf->getGravityMss(), CONSTANTS_ONE_G);
+}
+
+TEST_F(EkfBasicsTest, gravityUpdatesAtHighLatitude)
+{
+	// GIVEN: GPS fixed at the simulator default latitude (47.3566094 deg)
+	_sensor_simulator.startGps();
+	_sensor_simulator.runSeconds(11);
+
+	// THEN: gravity is re-evaluated to the latitude-dependent Somigliana value
+	ASSERT_EQ(1, (int) _ekf->control_status_flags().gnss_pos);
+	EXPECT_FLOAT_EQ(_ekf->getGravityMss(), LatLonAlt::Wgs84::gravity(math::radians(47.3566094)));
+	// and it has moved measurably away from the standard constant
+	EXPECT_GT(fabsf(_ekf->getGravityMss() - CONSTANTS_ONE_G), 1e-3f);
+}
+
 TEST_F(EkfBasicsTest, accelBiasEstimation)
 {
 	// GIVEN: initialized EKF with default IMU, baro and mag input
@@ -276,6 +309,8 @@ TEST_F(EkfBasicsTest, reset_ekf_global_origin_gps_uninitialized)
 
 	EXPECT_FALSE(_ekf->global_origin_valid());
 
+	const uint8_t pos_reset_count_prev = _ekf->get_posNE_reset_count();
+
 	_latitude_new  = 45.0000005;
 	_longitude_new = 111.0000005;
 	_altitude_new  = 1500.0;
@@ -292,7 +327,14 @@ TEST_F(EkfBasicsTest, reset_ekf_global_origin_gps_uninitialized)
 	EXPECT_TRUE(_ekf->global_origin_valid());
 	EXPECT_FALSE(_ekf->isGlobalHorizontalPositionValid());
 
+	// The global position is placed at the origin without reporting a local position reset
+	EXPECT_EQ(_ekf->get_posNE_reset_count(), pos_reset_count_prev);
+	EXPECT_NEAR(_ekf->getLatLonAlt().latitude_deg(), _latitude_new, 1e-5);
+
 	_sensor_simulator.runSeconds(1);
+
+	// Gravity is evaluated at the origin latitude, not at lat/lon (0, 0)
+	EXPECT_NEAR(_ekf->getGravityMss(), LatLonAlt::Wgs84::gravity(math::radians(_latitude_new)), 1e-4f);
 
 	// After the change of origin, the pos and vel innovations should stay small
 	EXPECT_NEAR(_ekf->aid_src_gnss_pos().test_ratio[0], 0.f, 0.05f);
@@ -322,6 +364,8 @@ TEST_F(EkfBasicsTest, global_position_from_local_ev)
 	_longitude_new = 111.0000005;
 	_altitude_new  = 1500.0;
 
+	const uint8_t pos_reset_count_prev = _ekf->get_posNE_reset_count();
+
 	// BUT WHEN: the global origin is set (manually)
 	_ekf->setEkfGlobalOrigin(_latitude_new, _longitude_new, _altitude_new);
 
@@ -329,6 +373,9 @@ TEST_F(EkfBasicsTest, global_position_from_local_ev)
 	EXPECT_TRUE(_ekf->global_origin_valid());
 	EXPECT_TRUE(_ekf->isGlobalHorizontalPositionValid());
 	EXPECT_TRUE(_ekf->isLocalHorizontalPositionValid());
+
+	// AND: the local position did not move, so no reset is reported
+	EXPECT_EQ(_ekf->get_posNE_reset_count(), pos_reset_count_prev);
 }
 
 TEST_F(EkfBasicsTest, global_position_from_opt_flow)

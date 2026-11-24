@@ -82,10 +82,12 @@ void GpsBlending::update(uint64_t hrt_now_us)
 		}
 
 		_selected_gps = gps_select_index;
+		_output_antenna_offset = _antenna_offset[gps_select_index];
 		_is_new_output_data_available =  _gps_updated[gps_select_index];
 
 		for (uint8_t i = 0; i < GPS_MAX_RECEIVERS_BLEND; i++) {
-			_gps_updated[gps_select_index] = false;
+			// clear updated flags
+			_gps_updated[i] = false;
 		}
 	}
 
@@ -160,6 +162,11 @@ bool GpsBlending::blend_gps_data(uint64_t hrt_now_us)
 		}
 
 		_np_gps_suitable_for_blending++;
+	}
+
+	// If blending is disabled, skip the blend timing gate below so single-receiver selection is held up
+	if (!_blend_use_spd_acc && !_blend_use_hpos_acc && !_blend_use_vpos_acc) {
+		return false;
 	}
 
 	// Find the receiver that is last be updated
@@ -340,6 +347,15 @@ bool GpsBlending::blend_gps_data(uint64_t hrt_now_us)
 		// offsets for each physical receiver
 		sensor_gps_s gps_blended_state = gps_blend_states(blend_weights);
 
+		// blend antenna offsets using the same weights
+		_output_antenna_offset.zero();
+
+		for (uint8_t i = 0; i < GPS_MAX_RECEIVERS_BLEND; i++) {
+			if (blend_weights[i] > 0.0f) {
+				_output_antenna_offset += _antenna_offset[i] * blend_weights[i];
+			}
+		}
+
 		update_gps_offsets(gps_blended_state);
 
 		// calculate a blended output from the offset corrected receiver data
@@ -438,10 +454,6 @@ sensor_gps_s GpsBlending::gps_blend_states(float blend_weights[GPS_MAX_RECEIVERS
 			}
 		}
 
-		// TODO read parameters for individual GPS antenna positions and blend
-		// Vector3f temp_antenna_offset = _antenna_offset[i];
-		// temp_antenna_offset *= blend_weights[i];
-		// _blended_antenna_offset += temp_antenna_offset;
 	}
 
 	/*

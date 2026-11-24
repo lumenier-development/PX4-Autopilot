@@ -38,6 +38,7 @@
 
 #include <containers/IntrusiveQueue.hpp>
 #include <containers/IntrusiveSortedList.hpp>
+#include <px4_platform_common/atomic.h>
 #include <px4_platform_common/defines.h>
 #include <drivers/drv_hrt.h>
 #include <lib/mathlib/mathlib.h>
@@ -83,13 +84,14 @@ public:
 
 	const char *ItemName() const { return _item_name; }
 
+	virtual ~WorkItem();
+
 protected:
 
 	explicit WorkItem(const char *name, const wq_config_t &config);
 
 	explicit WorkItem(const char *name, const WorkItem &work_item);
 
-	virtual ~WorkItem();
 
 	/**
 	 * Remove work item from the runnable queue, if it's there

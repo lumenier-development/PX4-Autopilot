@@ -4,7 +4,7 @@
 
 These boards are maintained, updated, tested and otherwise supported by the PX4 project maintainers and Dronecode test team.
 
-:::tip
+::: tip
 For more information about PX4 project autopilot board support levels see: [px4.io/autopilots/](https://px4.io/autopilots/).
 :::
 
@@ -25,6 +25,6 @@ The boards in this category are:
 - [Drotek Pixhawk 3 Pro](../flight_controller/pixhawk3_pro.md) (FMUv4pro) - Discontinued by Drotek but supported by PX4
 - [mRo Pixracer](../flight_controller/pixracer.md) (FMUv4)
 - [CUAV Pixhack v3](../flight_controller/pixhack_v3.md) (FMUv3)
-- [Hex Cube Black](../flight_controller/pixhawk-2.md) (FMUv3)
+- [CubePilot Cube Black](../flight_controller/pixhawk-2.md) (FMUv3)
 - [mRo Pixhawk](../flight_controller/mro_pixhawk.md) (FMUv3)
 - [Holybro Pixhawk Mini](../flight_controller/pixhawk_mini.md) (FMUv3) - Discontinued by Holybro but supported by PX4

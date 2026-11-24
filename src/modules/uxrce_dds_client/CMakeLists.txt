@@ -35,8 +35,12 @@ if(${CMAKE_VERSION} VERSION_LESS_EQUAL "3.15")
 	message(WARNING "skipping uxrce_dds_client, Micro-XRCE-DDS-Client needs to be fixed to work with CMAKE_VERSION ${CMAKE_VERSION}")
 
 else()
-
-	set(microxrceddsclient_src_dir   ${CMAKE_CURRENT_SOURCE_DIR}/Micro-XRCE-DDS-Client)
+	if(CONFIG_UXRCE_DDS_CLIENT_USE_DDS_V3)
+		message(WARNING "Using Micro-XRCE-DDS-Client v3 for uxrce_dds_client module")
+		set(microxrceddsclient_src_dir   ${CMAKE_CURRENT_SOURCE_DIR}/Micro-XRCE-DDS-Client-v3)
+	else()
+		set(microxrceddsclient_src_dir   ${CMAKE_CURRENT_SOURCE_DIR}/Micro-XRCE-DDS-Client)
+	endif()
 	set(microxrceddsclient_build_dir ${CMAKE_CURRENT_BINARY_DIR})
 
 	px4_add_git_submodule(TARGET git_micro_xrce_dds_client PATH "${microxrceddsclient_src_dir}")
@@ -63,7 +67,6 @@ else()
 	endif()
 
 	include(ExternalProject)
-
 	ExternalProject_Add(
 		libmicroxrceddsclient_project
 		PREFIX      ${microxrceddsclient_build_dir}
@@ -139,7 +142,6 @@ else()
 			# -DDEBUG_BUILD
 			${MAX_CUSTOM_OPT_LEVEL}
 		SRCS
-			${CMAKE_CURRENT_BINARY_DIR}/dds_topics.h
 			uxrce_dds_client.cpp
 			uxrce_dds_client.h
 			vehicle_command_srv.cpp

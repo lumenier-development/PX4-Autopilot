@@ -33,6 +33,10 @@
 
 #include "externalChecks.hpp"
 
+// The reply queue must hold one reply from every registered mode within a single request cycle (https://github.com/PX4/PX4-Autopilot/issues/27271)
+static_assert(arming_check_reply_s::ORB_QUEUE_LENGTH >= ExternalChecks::MAX_NUM_REGISTRATIONS,
+	      "ArmingCheckReply ORB_QUEUE_LENGTH must be >= ExternalChecks::MAX_NUM_REGISTRATIONS");
+
 static void setOrClearRequirementBits(bool requirement_set, int8_t nav_state, int8_t replaces_nav_state, uint32_t &bits)
 {
 	if (requirement_set) {
@@ -243,6 +247,15 @@ void ExternalChecks::update()
 			}
 
 			if (_registrations[reply.registration_id].reply) {
+				// num_events is a uint8 arriving on an externally writable topic, while events is
+				// a fixed-size array. Clamp it here, next to the registration_id check, so
+				// checkAndReport() cannot iterate past the end of the array.
+				static constexpr uint8_t max_num_events = sizeof(reply.events) / sizeof(reply.events[0]);
+
+				if (reply.num_events > max_num_events) {
+					reply.num_events = max_num_events;
+				}
+
 				*_registrations[reply.registration_id].reply = reply;
 			}
 

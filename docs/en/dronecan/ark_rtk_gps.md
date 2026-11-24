@@ -20,6 +20,7 @@ Order this module from:
     - Multi-band RTK with fast convergence times and reliable performance
     - High update rate for highly dynamic applications
     - Centimetre accuracy in a small and energy efficient module
+    - Moving Base for Heading
   - Bosch BMM150 Magnetometer
   - Bosch BMP388 Barometer
   - Invensense ICM-42688-P 6-Axis IMU
@@ -83,9 +84,18 @@ You need to set necessary [DroneCAN](index.md) parameters and define offsets if 
 
 - Enable GPS yaw fusion by setting bit 3 of [EKF2_GPS_CTRL](../advanced_config/parameter_reference.md#EKF2_GPS_CTRL) to true.
 - Enable GPS blending to ensure the heading is always published by setting [SENS_GPS_MASK](../advanced_config/parameter_reference.md#SENS_GPS_MASK) to 7 (all three bits checked).
+- If using [Moving Baseline & GPS Heading](#setting-up-moving-baseline-gps-heading), set [SENS_GPS_PRIME](../advanced_config/parameter_reference.md#SENS_GPS_PRIME) to the CAN node ID of the _Moving Base_ module. The moving base is preferred because the rover receiver in a moving baseline configuration can experience degraded navigation rate and increased data latency when corrections are intermittent.
 - Enable [UAVCAN_SUB_GPS](../advanced_config/parameter_reference.md#UAVCAN_SUB_GPS), [UAVCAN_SUB_MAG](../advanced_config/parameter_reference.md#UAVCAN_SUB_MAG), and [UAVCAN_SUB_BARO](../advanced_config/parameter_reference.md#UAVCAN_SUB_BARO).
-- The parameters [EKF2_GPS_POS_X](../advanced_config/parameter_reference.md#EKF2_GPS_POS_X), [EKF2_GPS_POS_Y](../advanced_config/parameter_reference.md#EKF2_GPS_POS_Y) and [EKF2_GPS_POS_Z](../advanced_config/parameter_reference.md#EKF2_GPS_POS_Z) can be set to account for the offset of the ARK RTK GPS from the vehicles centre of gravity.
-- Set [CANNODE_TERM](../advanced_config/parameter_reference.md#CANNODE_TERM) to `1` on the GPS if this it that last node on the CAN bus.
+- The parameters [SENS_GPS0_OFFX](../advanced_config/parameter_reference.md#SENS_GPS0_OFFX), [SENS_GPS0_OFFY](../advanced_config/parameter_reference.md#SENS_GPS0_OFFY) and [SENS_GPS0_OFFZ](../advanced_config/parameter_reference.md#SENS_GPS0_OFFZ) can be set to account for the offset of the ARK RTK GPS from the vehicles centre of gravity.
+
+### ARK RTK GPS Configuration
+
+You may need to [configure the following parameters](../dronecan/index.md#qgc-cannode-parameter-configuration) on the ARK RTK GPS itself:
+
+| Parameter                                                                                                | Description                                                                                                                           |
+| -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="CANNODE_NODE_ID"></a>[CANNODE_NODE_ID](../advanced_config/parameter_reference.md#CANNODE_NODE_ID) | CAN node ID (0 for dynamic allocation). If set to 0 (default), dynamic node allocation is used. Set to 1-125 to use a static node ID. |
+| <a id="CANNODE_TERM"></a>[CANNODE_TERM](../advanced_config/parameter_reference.md#CANNODE_TERM)          | CAN built-in bus termination. Set to `1` if this is the last node on the CAN bus.                                                     |
 
 ### Setting Up Rover and Fixed Base
 
@@ -110,7 +120,9 @@ For more information see [Rover and Fixed Base](../dronecan/index.md#rover-and-f
 
 The simplest way to set up moving baseline and GPS heading with two ARK RTK GPS modules is via CAN, though it can be done via UART to reduce traffic on the CAN bus if desired.
 
-Note that a heading is only output if the Rover is in RTX Fixed mode. It will not output a heading in RTK Float.
+Note that a heading is only output if the Rover is in RTK Fixed mode. It will not output a heading in RTK Float.
+
+Both modules run at 5 Hz in the moving base modes, the u-blox maximum for a moving base, because a rover must share its base's navigation rate. The node firmware sets this, so leave [GPS_UBX_RATE](../advanced_config/parameter_reference.md#GPS_UBX_RATE) at `0`.
 
 Setup via CAN:
 
@@ -127,6 +139,7 @@ Setup via CAN:
 - On the _Moving Base_, set the following:
   - [GPS_UBX_MODE](../advanced_config/parameter_reference.md#GPS_UBX_MODE) to `4`.
   - [CANNODE_PUB_MBD](../advanced_config/parameter_reference.md#CANNODE_PUB_MBD) to `1`.
+- On the _Flight Controller_, set [SENS_GPS_PRIME](../advanced_config/parameter_reference.md#SENS_GPS_PRIME) to the CAN node ID of the _Moving Base_ (see [PX4 Configuration](#px4-configuration)).
 
 Setup via UART:
 
@@ -145,6 +158,7 @@ Setup via UART:
   - [GPS_YAW_OFFSET](../advanced_config/parameter_reference.md#GPS_YAW_OFFSET) to `0` if your _Rover_ is in front of your _Moving Base_, `90` if _Rover_ is right of _Moving Base_, `180` if _Rover_ is behind _Moving Base_, or `270` if _Rover_ is left of _Moving Base_.
 - On the _Moving Base_, set the following:
   - [GPS_UBX_MODE](../advanced_config/parameter_reference.md#GPS_UBX_MODE) to `2`.
+- On the _Flight Controller_, set [SENS_GPS_PRIME](../advanced_config/parameter_reference.md#SENS_GPS_PRIME) to the CAN node ID of the _Moving Base_ (see [PX4 Configuration](#px4-configuration)).
 
 For more information see [Rover and Moving Base](../dronecan/index.md#rover-and-moving-base) in the DroneCAN guide.
 

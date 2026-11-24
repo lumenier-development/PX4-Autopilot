@@ -59,6 +59,7 @@ private:
 
 	uORB::Subscription _sensor_gps_sub{ORB_ID(sensor_gps), 0};
 	hrt_abstime _last_send_ts {};
+	bool _yaw_capable{false}; ///< a heading has been reported at least once
 	static constexpr hrt_abstime kNoGpsSendInterval {1_s};
 
 	bool send() override
@@ -68,7 +69,13 @@ private:
 		hrt_abstime now{};
 
 		if (_sensor_gps_sub.update(&gps)) {
-			msg.time_usec = gps.timestamp;
+			if (gps.time_utc_usec <= 0) {
+				msg.time_usec = gps.timestamp;
+
+			} else {
+				msg.time_usec = gps.time_utc_usec;
+			}
+
 			msg.fix_type = gps.fix_type;
 			msg.lat = static_cast<int32_t>(round(gps.latitude_deg * 1e7));
 			msg.lon = static_cast<int32_t>(round(gps.longitude_deg * 1e7));
@@ -91,6 +98,8 @@ private:
 			msg.vel_acc = gps.s_variance_m_s * 1e3f; // speed uncertainty in mm
 
 			if (PX4_ISFINITE(gps.heading)) {
+				_yaw_capable = true;
+
 				if (fabsf(gps.heading) < FLT_EPSILON) {
 					msg.yaw = 36000; // Use 36000 for north.
 
@@ -101,6 +110,11 @@ private:
 				if (PX4_ISFINITE(gps.heading_accuracy)) {
 					msg.hdg_acc = math::degrees(gps.heading_accuracy) * 1e5f; // Heading / track uncertainty in degE5
 				}
+
+			} else if (_yaw_capable) {
+				// 0 means the receiver never provides yaw, so a receiver that does has to
+				// report the samples it has no heading for as invalid instead
+				msg.yaw = UINT16_MAX;
 			}
 
 			mavlink_msg_gps_raw_int_send_struct(_mavlink->get_channel(), &msg);
@@ -115,6 +129,11 @@ private:
 			msg.vel = UINT16_MAX;
 			msg.cog = UINT16_MAX;
 			msg.satellites_visible = UINT8_MAX;
+
+			if (_yaw_capable) {
+				msg.yaw = UINT16_MAX;
+			}
+
 			mavlink_msg_gps_raw_int_send_struct(_mavlink->get_channel(), &msg);
 			_last_send_ts = now;
 

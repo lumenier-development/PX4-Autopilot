@@ -15,9 +15,9 @@ Gps::~Gps()
 
 void Gps::send(const uint64_t time)
 {
-	const float dt = static_cast<float>(time - _gps_data.time_us) * 1e-6f;
+	const float dt = static_cast<float>(time - _gps_data.time_us - kGpsDelayUs) * 1e-6f;
 
-	_gps_data.time_us = time;
+	_gps_data.time_us = time - kGpsDelayUs;
 
 	if (fabsf(_gps_pos_rate(0)) > FLT_EPSILON || fabsf(_gps_pos_rate(1)) > FLT_EPSILON) {
 		stepHorizontalPositionByMeters(Vector2f(_gps_pos_rate) * dt);
@@ -63,6 +63,11 @@ void Gps::setYaw(const float yaw)
 void Gps::setYawOffset(const float yaw_offset)
 {
 	_gps_data.yaw_offset = yaw_offset;
+}
+
+void Gps::setYawAccuracy(const float yaw_acc)
+{
+	_gps_data.yaw_acc = yaw_acc;
 }
 
 void Gps::setFixType(const int fix_type)

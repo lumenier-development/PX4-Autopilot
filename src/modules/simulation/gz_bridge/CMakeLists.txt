@@ -32,15 +32,21 @@
 ############################################################################
 
 if(NOT DEFINED ENV{GZ_DISTRO} OR NOT "$ENV{GZ_DISTRO}" STREQUAL "harmonic")
-    find_package(gz-transport NAMES gz-transport gz-transport14 gz-transport13)
+    find_package(gz-transport NAMES gz-transport gz-transport15 gz-transport14 gz-transport13)
 else()
     find_package(gz-transport NAMES gz-transport13)
 endif()
 
-file(GLOB gz_worlds ${PX4_SOURCE_DIR}/Tools/simulation/gz/worlds/*.sdf)
-file(GLOB gz_airframes ${PX4_SOURCE_DIR}/ROMFS/px4fmu_common/init.d-posix/airframes/*_gz_*)
-
 if (gz-transport_FOUND)
+	# gcc-15 spurious -Wmaybe-uninitialized in gz-transport15 FullyQualifiedTopic, will probably be fixed by gazebo in the future
+	if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 15
+		AND gz-transport_VERSION VERSION_GREATER_EQUAL 15)
+		add_compile_options(-Wno-error=maybe-uninitialized)
+	endif()
+	px4_add_git_submodule(TARGET git_gz PATH "${PX4_SOURCE_DIR}/Tools/simulation/gz")
+
+	file(GLOB gz_worlds ${PX4_SOURCE_DIR}/Tools/simulation/gz/worlds/*.sdf)
+	file(GLOB gz_airframes ${PX4_SOURCE_DIR}/ROMFS/px4fmu_common/init.d-posix/airframes/*_gz_*)
     if (gz-transport_VERSION VERSION_LESS "15")
         set(GZ_TRANSPORT_TARGET "gz-transport${gz-transport_VERSION_MAJOR}::core")
     else()
@@ -63,11 +69,17 @@ if (gz-transport_FOUND)
 			GZGimbal.cpp
 			GZGimbal.hpp
 		DEPENDS
+			drivers_accelerometer
+			drivers_gyroscope
+			drivers_magnetometer
+			drivers_rangefinder
+			drivers_barometer
 			mixer_module
 			px4_work_queue
 			${GZ_TRANSPORT_TARGET}
 		MODULE_CONFIG
 			module.yaml
+			parameters.yaml
 	)
 
     target_include_directories(modules__simulation__gz_bridge
@@ -78,7 +90,6 @@ if (gz-transport_FOUND)
 	target_include_directories(modules__simulation__gz_bridge PUBLIC px4_gz_msgs)
 	target_link_libraries(modules__simulation__gz_bridge PUBLIC px4_gz_msgs)
 
-	px4_add_git_submodule(TARGET git_gz PATH "${PX4_SOURCE_DIR}/Tools/simulation/gz")
 	include(ExternalProject)
 	ExternalProject_Add(gz
 		SOURCE_DIR ${PX4_SOURCE_DIR}/Tools/simulation/gz
@@ -120,7 +131,9 @@ if (gz-transport_FOUND)
 	endforeach()
 
 	# Setup the environment variables: PX4_GZ_MODELS, PX4_GZ_WORLDS, GZ_SIM_RESOURCE_PATH
-	configure_file(gz_env.sh.in ${PX4_BINARY_DIR}/rootfs/gz_env.sh)
+	# @ONLY disables ${VAR} substitution so that shell $VAR references in the
+	# template are passed through untouched.
+	configure_file(gz_env.sh.in ${PX4_BINARY_DIR}/rootfs/gz_env.sh @ONLY)
 
 else()
 	# Create fallback targets that provide helpful error messages when Gazebo dependencies are missing

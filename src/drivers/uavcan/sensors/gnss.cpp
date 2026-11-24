@@ -53,13 +53,14 @@ using namespace time_literals;
 
 const char *const UavcanGnssBridge::NAME = "gnss";
 
-UavcanGnssBridge::UavcanGnssBridge(uavcan::INode &node) :
-	UavcanSensorBridgeBase("uavcan_gnss", ORB_ID(sensor_gps)),
+UavcanGnssBridge::UavcanGnssBridge(uavcan::INode &node, NodeInfoPublisher *node_info_publisher) :
+	UavcanSensorBridgeBase("uavcan_gnss", ORB_ID(sensor_gps), node_info_publisher),
 	_node(node),
 	_sub_auxiliary(node),
 	_sub_fix(node),
 	_sub_fix2(node),
 	_sub_gnss_heading(node),
+	_sub_moving_baseline_data(node),
 	_pub_moving_baseline_data(node),
 	_pub_rtcm_stream(node),
 	_channel_using_fix2(new bool[_max_channels])
@@ -76,6 +77,7 @@ UavcanGnssBridge::~UavcanGnssBridge()
 	delete [] _channel_using_fix2;
 	perf_free(_rtcm_stream_pub_perf);
 	perf_free(_moving_baseline_data_pub_perf);
+	perf_free(_moving_baseline_data_sub_perf);
 }
 
 int
@@ -127,6 +129,15 @@ UavcanGnssBridge::init()
 		_publish_moving_baseline_data = true;
 		_pub_moving_baseline_data.setPriority(uavcan::TransferPriority::NumericallyMax);
 		_moving_baseline_data_pub_perf = perf_alloc(PC_INTERVAL, "uavcan: gnss: moving baseline data rtcm stream pub");
+	}
+
+	// UAVCAN_SUB_MBD
+	int32_t uavcan_sub_mbd = 0;
+	param_get(param_find("UAVCAN_SUB_MBD"), &uavcan_sub_mbd);
+
+	if (uavcan_sub_mbd == 1) {
+		res = _sub_moving_baseline_data.start(MovingBaselineDataCbBinder(this, &UavcanGnssBridge::moving_baseline_data_sub_cb));
+		_moving_baseline_data_sub_perf = perf_alloc(PC_INTERVAL, "uavcan: gnss: moving baseline data rtcm stream sub");
 	}
 
 	return res;
@@ -262,8 +273,8 @@ UavcanGnssBridge::gnss_fix2_sub_cb(const uavcan::ReceivedDataStructure<uavcan::e
 			vel_cov[7] = msg.covariance[19];
 			vel_cov[8] = msg.covariance[20];
 		}
+		break;
 
-	/* FALLTHROUGH */
 	case 36: {
 			// Full matrix 6x6.
 			// This code has been carefully optimized by hand. We could use unpackSquareMatrix(), but it's slow.
@@ -314,8 +325,9 @@ UavcanGnssBridge::gnss_fix2_sub_cb(const uavcan::ReceivedDataStructure<uavcan::e
 	uint8_t spoofing_state = 0;
 
 	// TODO: this hack should eventually be removed now that we have the RelPosHeading message
-	// HACK: Use ecef_position_velocity for heading
-	if (!msg.ecef_position_velocity.empty() && !_rel_heading_valid) {
+	// HACK: Use ecef_position_velocity for heading, noise, jamming and spoofing.
+	// A valid RelPosHeading overrides the heading in process_fixx(), but nothing else carries the rest.
+	if (!msg.ecef_position_velocity.empty()) {
 		if (!std::isnan(msg.ecef_position_velocity[0].velocity_xyz[0])) {
 			heading = msg.ecef_position_velocity[0].velocity_xyz[0];
 		}
@@ -338,6 +350,7 @@ UavcanGnssBridge::gnss_fix2_sub_cb(const uavcan::ReceivedDataStructure<uavcan::e
 	process_fixx(msg, fix_type, pos_cov, vel_cov, valid_covariances, valid_covariances, heading, heading_offset,
 		     heading_accuracy, noise_per_ms, jamming_indicator, jamming_state, spoofing_state);
 }
+
 void UavcanGnssBridge::gnss_relative_sub_cb(const
 		uavcan::ReceivedDataStructure<ardupilot::gnss::RelPosHeading> &msg)
 {
@@ -346,6 +359,41 @@ void UavcanGnssBridge::gnss_relative_sub_cb(const
 	_rel_heading_accuracy = math::radians(msg.reported_heading_acc_deg);
 
 }
+
+void UavcanGnssBridge::moving_baseline_data_sub_cb(const
+		uavcan::ReceivedDataStructure<ardupilot::gnss::MovingBaselineData> &msg)
+{
+	perf_count(_moving_baseline_data_sub_perf);
+
+	size_t total_bytes = msg.data.size();
+	size_t written = 0;
+
+	while (written < total_bytes) {
+		gps_dump_s dump = {};
+		dump.timestamp = hrt_absolute_time();
+
+		DeviceId device_id = {};
+		device_id.devid_s.bus_type = DeviceBusType::DeviceBusType_UAVCAN;
+		device_id.devid_s.bus = 0;
+		device_id.devid_s.address = msg.getSrcNodeID().get() & 0xFF;
+		device_id.devid_s.devtype = DRV_GPS_DEVTYPE_UAVCAN;
+
+		dump.instance = 0; // TODO: How can we determine the instance? Startup order of CANnodes is non-deterministic.
+		dump.device_id = device_id.devid;
+
+		size_t remaining = total_bytes - written;
+		size_t write_len = remaining < sizeof(dump.data) ? remaining : sizeof(dump.data);
+
+		memcpy(dump.data, msg.data.begin() + written, write_len);
+		dump.len = write_len;
+		dump.len &= 0x7F; // MSB of len is direction - 0 is from the device
+
+		written += write_len;
+
+		_gps_dump_pub.publish(dump);
+	}
+}
+
 template <typename FixType>
 void UavcanGnssBridge::process_fixx(const uavcan::ReceivedDataStructure<FixType> &msg,
 				    uint8_t fix_type,
@@ -357,7 +405,15 @@ void UavcanGnssBridge::process_fixx(const uavcan::ReceivedDataStructure<FixType>
 				    const uint8_t spoofing_state)
 {
 	sensor_gps_s sensor_gps{};
-	sensor_gps.device_id = get_device_id();
+
+	sensor_gps.device_id = make_uavcan_device_id(msg);
+
+	// Register GPS capability with NodeInfoPublisher after first successful message
+	if (_node_info_publisher != nullptr) {
+		_node_info_publisher->registerDeviceCapability(msg.getSrcNodeID().get(),
+				sensor_gps.device_id,
+				NodeInfoPublisher::DeviceCapability::GPS);
+	}
 
 	/*
 	 * FIXME HACK
@@ -450,6 +506,55 @@ void UavcanGnssBridge::process_fixx(const uavcan::ReceivedDataStructure<FixType>
 		break;
 	}
 
+	// Recover the navigation epoch in HRT: map msg.timestamp (node send UTC)
+	// into HRT, then subtract (msg.timestamp - msg.gnss_timestamp), which is
+	// the node-measured receiver processing delay. Nodes that leave
+	// msg.timestamp unset or on a non-UTC timebase fail the guard and fall
+	// through to the SENS_GPS*_DELAY path in VehicleGPSPosition.
+	const uint64_t msg_ts_usec = uavcan::UtcTime(msg.timestamp).toUSec();
+
+	// Sanity-bound the node-measured processing delay before it drives the clock
+	// estimator: a remote UTC discontinuity (leap second, receiver glitch) must
+	// not pin the offset low for the rest of the flight. Implausible values fall
+	// through to the SENS_GPS*_DELAY path.
+	static constexpr uint64_t kMaxProcessingDelayUs = 500'000;
+
+	if (msg_ts_usec > gnss_ts_usec && gnss_ts_usec > 0
+	    && (msg_ts_usec - gnss_ts_usec) < kMaxProcessingDelayUs) {
+		const int node_id = msg.getSrcNodeID().get();
+		ClockOffsetEstimator *estimator = nullptr;
+
+		for (auto &slot : _clock_estimator_slots) {
+			if (slot.node_id == node_id) {
+				estimator = &slot.estimator;
+				break;
+			}
+		}
+
+		if (estimator == nullptr) {
+			for (auto &slot : _clock_estimator_slots) {
+				if (slot.node_id < 0) {
+					slot.node_id = node_id;
+					estimator = &slot.estimator;
+					break;
+				}
+			}
+		}
+
+		if (estimator != nullptr) {
+			const hrt_abstime send_hrt = estimator->toLocal(msg_ts_usec, sensor_gps.timestamp);
+
+			if (send_hrt > 0) {
+				const int64_t processing_us = static_cast<int64_t>(msg_ts_usec - gnss_ts_usec);
+				const int64_t pvt_hrt = static_cast<int64_t>(send_hrt) - processing_us;
+
+				if (pvt_hrt > 0 && pvt_hrt < static_cast<int64_t>(sensor_gps.timestamp)) {
+					sensor_gps.timestamp_sample = static_cast<hrt_abstime>(pvt_hrt);
+				}
+			}
+		}
+	}
+
 	// If we haven't already done so, set the system clock using GPS data
 	if (sensor_gps.time_utc_usec != 0 && (fix_type >= sensor_gps_s::FIX_TYPE_2D) && !_system_clock_set) {
 		timespec ts{};
@@ -478,8 +583,7 @@ void UavcanGnssBridge::process_fixx(const uavcan::ReceivedDataStructure<FixType>
 		sensor_gps.vdop = msg.pdop;
 	}
 
-	// Use heading from RelPosHeading message if available and we have RTK Fixed solution.
-	if (_rel_heading_valid && (fix_type == sensor_gps_s::FIX_TYPE_RTK_FIXED)) {
+	if (_rel_heading_valid) {
 		sensor_gps.heading = _rel_heading;
 		sensor_gps.heading_offset = NAN;
 		sensor_gps.heading_accuracy = _rel_heading_accuracy;
@@ -510,16 +614,85 @@ void UavcanGnssBridge::update()
 	handleInjectDataTopic();
 }
 
-// Partially taken from src/drivers/gps/gps.cpp
-// This listens on the gps_inject_data uORB topic for RTCM data
-// sent from a GCS (usually over MAVLINK GPS_RTCM_DATA).
-// Forwarding this data to the UAVCAN bus enables DGPS/RTK GPS
-// to work.
+// Drains rtcm_corrections (fixed-base RTCM from a GCS over MAVLink, or CAN nodes) to
+// uavcan::RTCMStream. Several sources may be active (one uORB instance each); switch to a
+// different instance if the selected one goes stale.
+void UavcanGnssBridge::drainRtcmCorrections()
+{
+	const hrt_abstime now = hrt_absolute_time();
+
+	bool already_copied = false;
+	rtcm_data_s msg;
+
+	if (now > _last_rtcm_injection_time + 5_s) {
+		for (int instance = 0; instance < _rtcm_corrections_sub.size(); instance++) {
+			if (_rtcm_corrections_sub[instance].advertised() && _rtcm_corrections_sub[instance].copy(&msg)) {
+				if (now < msg.timestamp + 5_s) {
+					already_copied = true;
+					_selected_rtcm_instance = instance;
+					break;
+				}
+			}
+		}
+	}
+
+	bool updated = already_copied;
+	size_t num_injections = 0;
+
+	do {
+		if (updated) {
+			num_injections++;
+			PublishRTCMStream(msg.data, msg.len);
+			_rtcm_injection_rate_message_count++;
+			_last_rtcm_injection_time = hrt_absolute_time();
+		}
+
+		auto &sub = _rtcm_corrections_sub[_selected_rtcm_instance];
+		const unsigned last_generation = sub.get_last_generation();
+
+		updated = sub.update(&msg);
+
+		if (updated && sub.get_last_generation() != last_generation + 1) {
+			PX4_WARN("%s lost, generation %u -> %u", sub.get_topic()->o_name,
+				 last_generation, sub.get_last_generation());
+		}
+	} while (updated && num_injections < rtcm_data_s::ORB_QUEUE_LENGTH);
+}
+
+// Drains rtcm_moving_baseline (moving-base RTCM 4072 from a peer GPS) to
+// ardupilot::MovingBaselineData. Single publisher (instance 0), so no stale-link selection.
+void UavcanGnssBridge::drainMovingBaseline()
+{
+	rtcm_data_s msg;
+	size_t num_injections = 0;
+
+	while (num_injections < rtcm_data_s::ORB_QUEUE_LENGTH) {
+		const unsigned last_generation = _rtcm_moving_baseline_sub.get_last_generation();
+
+		if (!_rtcm_moving_baseline_sub.update(&msg)) {
+			break;
+		}
+
+		num_injections++;
+
+		if (_rtcm_moving_baseline_sub.get_last_generation() != last_generation + 1) {
+			PX4_WARN("%s lost, generation %u -> %u", _rtcm_moving_baseline_sub.get_topic()->o_name,
+				 last_generation, _rtcm_moving_baseline_sub.get_last_generation());
+		}
+
+		PublishMovingBaselineData(msg.data, msg.len);
+	}
+}
+
+// The two RTCM streams use separate CAN publishers: fixed-base corrections go to
+// uavcan::RTCMStream and moving-baseline RTCM to ardupilot::MovingBaselineData, so corrections
+// are never mirrored onto the moving-baseline message.
 void UavcanGnssBridge::handleInjectDataTopic()
 {
-	hrt_abstime now = hrt_absolute_time();
+	const hrt_abstime now = hrt_absolute_time();
 
-	// measure RTCM update rate every 5 seconds
+	// Measure the fixed-base corrections injection rate every 5 seconds (moving-baseline forwarding
+	// is tracked separately via _moving_baseline_data_pub_perf, so it is excluded here).
 	if (now > _last_rate_measurement + 5_s) {
 		float dt = (now - _last_rate_measurement) / 1e6f;
 		_rtcm_injection_rate = _rtcm_injection_rate_message_count / dt;
@@ -527,62 +700,13 @@ void UavcanGnssBridge::handleInjectDataTopic()
 		_rtcm_injection_rate_message_count = 0;
 	}
 
-	// We don't want to call copy again further down if we have already done a
-	// copy in the selection process.
-	bool already_copied = false;
-	gps_inject_data_s msg;
-
-	// If there has not been a valid RTCM message for a while, try to switch to a different RTCM link
-	if (now > _last_rtcm_injection_time + 5_s) {
-
-		for (int instance = 0; instance < _orb_inject_data_sub.size(); instance++) {
-			const bool exists = _orb_inject_data_sub[instance].advertised();
-
-			if (exists) {
-				if (_orb_inject_data_sub[instance].copy(&msg)) {
-					if ((hrt_absolute_time() - msg.timestamp) < 5_s) {
-						// Remember that we already did a copy on this instance.
-						already_copied = true;
-						_selected_rtcm_instance = instance;
-						break;
-					}
-				}
-			}
-		}
+	if (_publish_rtcm_stream) {
+		drainRtcmCorrections();
 	}
 
-	bool updated = already_copied;
-
-	// Limit maximum number of GPS injections to 8 since usually
-	// GPS injections should consist of 1-4 packets (GPS, Glonass, BeiDou, Galileo).
-	// Looking at 8 packets thus guarantees, that at least a full injection
-	// data set is evaluated.
-	// Moving Base requires a higher rate, so we allow up to 8 packets.
-	const size_t max_num_injections = gps_inject_data_s::ORB_QUEUE_LENGTH;
-	size_t num_injections = 0;
-
-	do {
-		if (updated) {
-			num_injections++;
-
-			// Write the message to the gps device. Note that the message could be fragmented.
-			// But as we don't write anywhere else to the device during operation, we don't
-			// need to assemble the message first.
-			if (_publish_rtcm_stream) {
-				PublishRTCMStream(msg.data, msg.len);
-			}
-
-			if (_publish_moving_baseline_data) {
-				PublishMovingBaselineData(msg.data, msg.len);
-			}
-
-			++_rtcm_injection_rate_message_count;
-			_last_rtcm_injection_time = hrt_absolute_time();
-		}
-
-		updated = _orb_inject_data_sub[_selected_rtcm_instance].update(&msg);
-
-	} while (updated && num_injections < max_num_injections);
+	if (_publish_moving_baseline_data) {
+		drainMovingBaseline();
+	}
 }
 
 bool UavcanGnssBridge::PublishRTCMStream(const uint8_t *const data, const size_t data_len)
@@ -648,4 +772,5 @@ void UavcanGnssBridge::print_status() const
 	UavcanSensorBridgeBase::print_status();
 	perf_print_counter(_rtcm_stream_pub_perf);
 	perf_print_counter(_moving_baseline_data_pub_perf);
+	perf_print_counter(_moving_baseline_data_sub_perf);
 }

@@ -40,7 +40,9 @@
 #include "commander_helper.h"
 
 HomePosition::HomePosition(const failsafe_flags_s &failsafe_flags): ModuleParams(nullptr),
-	_failsafe_flags(failsafe_flags) {}
+	_failsafe_flags(failsafe_flags),
+	_param_ekf2_gps_ctrl_handle(param_find("EKF2_GPS_CTRL"))
+{}
 
 bool HomePosition::hasMovedFromCurrentHomeLocation()
 {
@@ -58,7 +60,8 @@ bool HomePosition::hasMovedFromCurrentHomeLocation()
 		epv = _local_position_sub.get().epv;
 
 	} else if (_home_position_pub.get().valid_hpos && _home_position_pub.get().valid_alt) {
-		if (_valid) {
+		// Same source order as setHomePosition()
+		if (!_failsafe_flags.global_position_invalid) {
 			const vehicle_global_position_s &gpos = _global_position_sub.get();
 
 			get_distance_to_point_global_wgs84(_home_position_pub.get().lat, _home_position_pub.get().lon,
@@ -299,6 +302,19 @@ void HomePosition::setHomePosValid()
 	_valid = true;
 }
 
+bool HomePosition::isGpsPositionFusionEnabled()
+{
+	// If parameter doesn't exist, allow GPS usage
+	if (_param_ekf2_gps_ctrl_handle == PARAM_INVALID) {
+		return true;
+	}
+
+	// Raw GNSS home position uses both horizontal position and altitude.
+	int32_t ekf2_gps_ctrl = 0;
+	param_get(_param_ekf2_gps_ctrl_handle, &ekf2_gps_ctrl);
+	return (ekf2_gps_ctrl & kGpsCtrlHorizontalAndAltitude) == kGpsCtrlHorizontalAndAltitude;
+}
+
 void HomePosition::updateHomePositionYaw(float yaw)
 {
 	home_position_s home = _home_position_pub.get();
@@ -321,7 +337,7 @@ void HomePosition::update(bool set_automatically, bool check_if_changed)
 		const float baro_alt = baro_data.baro_alt_meter;
 
 		if (_last_baro_timestamp != 0) {
-			const float dt = baro_data.timestamp - _last_baro_timestamp;
+			const float dt = 1e-6f * (baro_data.timestamp - _last_baro_timestamp);
 			_lpf_baro.update(baro_alt, dt);
 
 		} else {
@@ -348,7 +364,8 @@ void HomePosition::update(bool set_automatically, bool check_if_changed)
 		const bool epv_valid = vehicle_gps_position.epv < kHomePositionGPSRequiredEPV;
 		const bool evh_valid = vehicle_gps_position.s_variance_m_s < kHomePositionGPSRequiredEVH;
 
-		_gps_position_for_home_valid = time_valid && fix_valid && eph_valid && epv_valid && evh_valid;
+		_gps_position_for_home_valid = time_valid && fix_valid && eph_valid && epv_valid && evh_valid
+					       && isGpsPositionFusionEnabled();
 
 		if (_param_com_home_en.get() && _gps_position_for_home_valid && _last_gps_timestamp != 0 && _last_baro_timestamp != 0
 		    && _takeoff_time != 0 && now < _takeoff_time + kHomePositionCorrectionTimeWindow) {

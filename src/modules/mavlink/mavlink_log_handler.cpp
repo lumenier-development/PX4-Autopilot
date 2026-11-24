@@ -36,23 +36,26 @@
 #include <dirent.h>
 #include <sys/stat.h>
 
+static_assert(PX4_MAX_FILEPATH_SCANF < PX4_MAX_FILEPATH,
+	      "sscanf width specifier must be less than filepath buffer size");
+
 static constexpr int MAX_BYTES_BURST = 256 * 1024;
 static const char *kLogListFilePath = PX4_STORAGEDIR "/logdata.txt";
 static const char *kLogListFilePathTemp = PX4_STORAGEDIR "/$log$.txt";
 static const char *kLogDir = PX4_STORAGEDIR "/log";
 
-#ifdef __PX4_NUTTX
-#define PX4LOG_REGULAR_FILE DTYPE_FILE
-#define PX4LOG_DIRECTORY    DTYPE_DIRECTORY
-#define PX4_MAX_FILEPATH 	CONFIG_PATH_MAX
-#else
-#ifndef PATH_MAX
-#define PATH_MAX 1024 // maximum on macOS
-#endif
-#define PX4LOG_REGULAR_FILE DT_REG
-#define PX4LOG_DIRECTORY    DT_DIR
-#define PX4_MAX_FILEPATH 	PATH_MAX
-#endif
+/**
+ * The log messages all carry target ids. On a link shared with other vehicles an unfiltered
+ * LOG_ERASE deletes this vehicle's logs too, and a listing request for one vehicle is
+ * answered by all of them. Zero is the broadcast value for both fields.
+ */
+static bool targeted_at_us(uint8_t target_system, uint8_t target_component)
+{
+	return (target_system == 0 || target_system == mavlink_system.sysid)
+	       && (target_component == 0
+		   || target_component == mavlink_system.compid
+		   || target_component == MAV_COMP_ID_ALL);
+}
 
 MavlinkLogHandler::MavlinkLogHandler(Mavlink &mavlink)
 	: _mavlink(mavlink)
@@ -112,22 +115,27 @@ void MavlinkLogHandler::handle_message(const mavlink_message_t *msg)
 	}
 }
 
+void MavlinkLogHandler::close_files()
+{
+	close_current_entry();
+	_state = LogHandlerState::Idle;
+}
+
 void MavlinkLogHandler::state_idle()
 {
 	if (_current_entry.fp && _file_send_finished) {
-		fclose(_current_entry.fp);
-		_current_entry.fp = nullptr;
-
-		_current_entry.id = 0xffff;
-		_current_entry.time_utc = 0;
-		_current_entry.size_bytes = 0;
-		_current_entry.filepath[0] = 0;
-		_current_entry.offset = 0;
-
-		_entry_request.id = 0xffff;
-		_entry_request.start_offset = 0;
-		_entry_request.byte_count = 0;
+		close_current_entry();
 	}
+}
+
+void MavlinkLogHandler::close_current_entry()
+{
+	if (_current_entry.fp) {
+		fclose(_current_entry.fp);
+	}
+
+	_current_entry = LogEntry{};
+	_entry_request = LogEntryRequest{};
 }
 
 void MavlinkLogHandler::state_listing()
@@ -171,10 +179,9 @@ void MavlinkLogHandler::state_listing()
 		// We can send!
 		uint32_t size_bytes = 0;
 		uint32_t time_utc = 0;
-		char filepath[PX4_MAX_FILEPATH];
 
-		// If parsed lined successfully, send the entry
-		if (sscanf(line, "%" PRIu32 " %" PRIu32 " %s", &time_utc, &size_bytes, filepath) != 3) {
+		// If parsed line successfully, send the entry (filepath is not needed here)
+		if (sscanf(line, "%" PRIu32 " %" PRIu32 " %*s", &time_utc, &size_bytes) != 2) {
 			PX4_DEBUG("sscanf failed");
 			continue;
 		}
@@ -210,14 +217,19 @@ void MavlinkLogHandler::state_sending_data()
 
 	while (_mavlink.get_free_tx_buf() > MAVLINK_PACKET_SIZE && bytes_sent < MAX_BYTES_BURST) {
 
+		if (!_current_entry.fp) {
+			_state = LogHandlerState::Idle;
+			return;
+		}
+
 		// Only seek if we need to
 		long int offset = _current_entry.offset - ftell(_current_entry.fp);
 
 		if (offset && fseek(_current_entry.fp, offset, SEEK_CUR)) {
-			fclose(_current_entry.fp);
-			_current_entry.fp = nullptr;
 			PX4_DEBUG("seek error");
+			close_current_entry();
 			_state = LogHandlerState::Idle;
+			return;
 		}
 
 		// Prepare mavlink message
@@ -259,6 +271,10 @@ void MavlinkLogHandler::handle_log_request_list(const mavlink_message_t *msg)
 	mavlink_log_request_list_t request;
 	mavlink_msg_log_request_list_decode(msg, &request);
 
+	if (!targeted_at_us(request.target_system, request.target_component)) {
+		return;
+	}
+
 	if (!create_log_list_file()) {
 		return;
 	}
@@ -282,6 +298,10 @@ void MavlinkLogHandler::handle_log_request_data(const mavlink_message_t *msg)
 	mavlink_log_request_data_t request;
 	mavlink_msg_log_request_data_decode(msg, &request);
 
+	if (!targeted_at_us(request.target_system, request.target_component)) {
+		return;
+	}
+
 	if (request.id >= _num_logs) {
 		PX4_DEBUG("Requested log %" PRIu16 " but we only have %u", request.id, _num_logs);
 		_state = LogHandlerState::Idle;
@@ -290,11 +310,7 @@ void MavlinkLogHandler::handle_log_request_data(const mavlink_message_t *msg)
 
 	// Handle switching to new request ID
 	if (request.id != _current_entry.id) {
-		// Close the old file
-		if (_current_entry.fp) {
-			fclose(_current_entry.fp);
-			_current_entry.fp = nullptr;
-		}
+		close_current_entry();
 
 		LogEntry entry = {};
 
@@ -309,6 +325,7 @@ void MavlinkLogHandler::handle_log_request_data(const mavlink_message_t *msg)
 
 		if (!entry.fp) {
 			PX4_DEBUG("Failed to open file %s", entry.filepath);
+			_state = LogHandlerState::Idle;
 			return;
 		}
 
@@ -334,15 +351,29 @@ void MavlinkLogHandler::handle_log_request_data(const mavlink_message_t *msg)
 
 void MavlinkLogHandler::handle_log_request_end(const mavlink_message_t *msg)
 {
+	mavlink_log_request_end_t request;
+	mavlink_msg_log_request_end_decode(msg, &request);
+
+	if (!targeted_at_us(request.target_system, request.target_component)) {
+		return;
+	}
+
 	_state = LogHandlerState::Idle;
 }
 
 void MavlinkLogHandler::handle_log_erase(const mavlink_message_t *msg)
 {
-	if (_current_entry.fp) {
-		fclose(_current_entry.fp);
-		_current_entry.fp = nullptr;
+	mavlink_log_erase_t request;
+	mavlink_msg_log_erase_decode(msg, &request);
+
+	if (!targeted_at_us(request.target_system, request.target_component)) {
+		return;
 	}
+
+	// Forget the open entry and the listing, the files behind them are about to go.
+	close_current_entry();
+	_num_logs = 0;
+	_logs_listed = false;
 
 	_state = LogHandlerState::Idle;
 	unlink(kLogListFilePath);
@@ -480,18 +511,10 @@ void MavlinkLogHandler::send_log_entry(uint32_t time_utc, uint32_t size_bytes)
 
 bool MavlinkLogHandler::log_entry_from_id(uint16_t log_id, LogEntry *entry)
 {
-	DIR *dp = opendir(kLogDir);
-
-	if (!dp) {
-		PX4_INFO("No logs available");
-		return false;
-	}
-
 	FILE *fp = fopen(kLogListFilePath, "r");
 
 	if (!fp) {
 		PX4_DEBUG("Failed to open %s", kLogListFilePath);
-		closedir(dp);
 		return false;
 	}
 
@@ -506,7 +529,8 @@ bool MavlinkLogHandler::log_entry_from_id(uint16_t log_id, LogEntry *entry)
 			continue;
 		}
 
-		if (sscanf(line, "%" PRIu32 " %" PRIu32 " %s", &(entry->time_utc), &(entry->size_bytes), entry->filepath) != 3) {
+		if (sscanf(line, "%" PRIu32 " %" PRIu32 " %" STRINGIFY(PX4_MAX_FILEPATH_SCANF) "s", &(entry->time_utc), &(entry->size_bytes),
+			   entry->filepath) != 3) {
 			PX4_DEBUG("sscanf failed");
 			continue;
 		}
@@ -517,14 +541,20 @@ bool MavlinkLogHandler::log_entry_from_id(uint16_t log_id, LogEntry *entry)
 	}
 
 	fclose(fp);
-	closedir(dp);
 
 	return found_entry;
 }
 
-void MavlinkLogHandler::delete_all_logs(const char *dir)
+void MavlinkLogHandler::delete_all_logs(const char *dir, unsigned depth)
 {
-	//-- Open log directory
+	// Log structure is log/yyyy-mm-dd/file.ulg (2 levels). Cap recursion to prevent stack overflow.
+	static constexpr unsigned MAX_DEPTH = 3;
+
+	if (depth >= MAX_DEPTH) {
+		PX4_DEBUG("Max depth reached: %s", dir);
+		return;
+	}
+
 	DIR *dp = opendir(dir);
 
 	if (dp == nullptr) {
@@ -534,34 +564,29 @@ void MavlinkLogHandler::delete_all_logs(const char *dir)
 	struct dirent *result = nullptr;
 
 	while ((result = readdir(dp))) {
-		// no more entries?
-		if (result == nullptr) {
-			break;
+
+		if (strcmp(result->d_name, ".") == 0 || strcmp(result->d_name, "..") == 0) {
+			continue;
 		}
 
-		if (result->d_type == PX4LOG_DIRECTORY && result->d_name[0] != '.') {
-			char filepath[PX4_MAX_FILEPATH];
-			int ret = snprintf(filepath, sizeof(filepath), "%s/%s", dir, result->d_name);
-			bool path_is_ok = (ret > 0) && (ret < (int)sizeof(filepath));
+		char filepath[PX4_MAX_FILEPATH];
+		int ret = snprintf(filepath, sizeof(filepath), "%s/%s", dir, result->d_name);
+		bool path_is_ok = (ret > 0) && (ret < (int)sizeof(filepath));
 
-			if (path_is_ok) {
-				delete_all_logs(filepath);
+		if (!path_is_ok) {
+			continue;
+		}
 
-				if (rmdir(filepath)) {
-					PX4_DEBUG("Error removing %s", filepath);
-				}
+		if (result->d_type == PX4LOG_DIRECTORY) {
+			delete_all_logs(filepath, depth + 1);
+
+			if (rmdir(filepath)) {
+				PX4_DEBUG("Error removing %s", filepath);
 			}
-		}
 
-		if (result->d_type == PX4LOG_REGULAR_FILE) {
-			char filepath[PX4_MAX_FILEPATH];
-			int ret = snprintf(filepath, sizeof(filepath), "%s/%s", dir, result->d_name);
-			bool path_is_ok = (ret > 0) && (ret < (int)sizeof(filepath));
-
-			if (path_is_ok) {
-				if (unlink(filepath)) {
-					PX4_DEBUG("Error unlinking %s", filepath);
-				}
+		} else {
+			if (unlink(filepath)) {
+				PX4_DEBUG("Error unlinking %s", filepath);
 			}
 		}
 	}

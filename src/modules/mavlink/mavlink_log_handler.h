@@ -32,9 +32,20 @@
  ****************************************************************************/
 
 #pragma once
-
 #include <perf/perf_counter.h>
 #include "mavlink_bridge_header.h"
+
+#ifdef __PX4_NUTTX
+#define PX4LOG_REGULAR_FILE    DTYPE_FILE
+#define PX4LOG_DIRECTORY       DTYPE_DIRECTORY
+#define PX4_MAX_FILEPATH       CONFIG_PATH_MAX
+#define PX4_MAX_FILEPATH_SCANF 255
+#else
+#define PX4LOG_REGULAR_FILE    DT_REG
+#define PX4LOG_DIRECTORY       DT_DIR
+#define PX4_MAX_FILEPATH       1024
+#define PX4_MAX_FILEPATH_SCANF 1023
+#endif
 
 class Mavlink;
 
@@ -47,13 +58,22 @@ public:
 	void send();
 	void handle_message(const mavlink_message_t *msg);
 
+	/**
+	 * Close any open log file. Must be called from the thread that handles the
+	 * log messages (the receiver thread): on NuttX a FILE belongs to the task
+	 * group that opened it, and fclose() from another task (e.g. the destructor
+	 * running in 'mavlink stop') frees it while it stays linked in the owner's
+	 * stream list, which then frees it again on exit (double free).
+	 */
+	void close_files();
+
 private:
 	struct LogEntry {
 		uint16_t id{0xffff};
 		uint32_t time_utc{};
 		uint32_t size_bytes{};
 		FILE *fp{nullptr};
-		char filepath[60];
+		char filepath[PX4_MAX_FILEPATH];
 		uint32_t offset{};
 	};
 
@@ -84,6 +104,7 @@ private:
 
 	// state functions
 	void state_idle();
+	void close_current_entry();
 	void state_listing();
 	void state_sending_data();
 
@@ -96,7 +117,7 @@ private:
 	bool log_entry_from_id(uint16_t log_id, LogEntry *entry);
 
 	// Log erase
-	void delete_all_logs(const char *dir);
+	void delete_all_logs(const char *dir, unsigned depth = 0);
 
 
 private:

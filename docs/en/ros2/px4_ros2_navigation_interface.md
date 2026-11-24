@@ -101,7 +101,7 @@ The following steps are required to get started:
 To send a position measurement, you populate the position struct with the values you have measured.
 Then call the interface's update function with that struct as the argument.
 
-For a basic example of how to use this interface, check out the [examples](https://github.com/Auterion/px4-ros2-interface-lib/tree/main/examples/cpp/navigation) in the `Auterion/px4-ros2-interface-lib` repository, such as [examples/cpp/navigation/local_navigation](https://github.com/Auterion/px4-ros2-interface-lib/blob/main/examples/cpp/navigation/local_navigation/include/local_navigation.hpp) or [examples/cpp/navigation/global_navigation](https://github.com/Auterion/px4-ros2-interface-lib/blob/main/examples/cpp/navigation/local_navigation/include/global_navigation.hpp).
+For a basic example of how to use this interface, check out the [examples](https://github.com/Auterion/px4-ros2-interface-lib/tree/main/examples/cpp/navigation) in the `Auterion/px4-ros2-interface-lib` repository, such as [examples/cpp/navigation/local_navigation](https://github.com/Auterion/px4-ros2-interface-lib/blob/main/examples/cpp/navigation/local_navigation/include/local_navigation.hpp) or [examples/cpp/navigation/global_navigation](https://github.com/Auterion/px4-ros2-interface-lib/blob/main/examples/cpp/navigation/global_navigation/include/global_navigation.hpp).
 
 ### Local Position Updates
 
@@ -220,10 +220,14 @@ private:
 
 ### Global Position Updates
 
-First ensure that the PX4 parameter [`EKF2_AGP_CTRL`](../advanced_config/parameter_reference.md#EKF2_AGP_CTRL) is properly configured to fuse external global measurements, by setting the appropriate bits to `true`:
+First ensure that the PX4 [`EKF2_AGPn_CTRL`](../advanced_config/parameter_reference.md#EKF2_AGP0_CTRL) parameters are properly configured to fuse external global measurements, by setting the appropriate bits to `true`:
 
 - `0`: Horizontal position data
 - `1`: Vertical position data
+
+Each measurement source has its own set of `EKF2_AGPn_*` parameters, which are only used when [`EKF2_AGPn_ID`](../advanced_config/parameter_reference.md#EKF2_AGP0_ID) is set to the ID that the source sends in its messages.
+The `GlobalPositionMeasurementInterface` sends the ID given to its constructor, which is `1` by default.
+Reboot the vehicle after changing `EKF2_AGPn_ID`.
 
 To send a global position measurement to PX4:
 

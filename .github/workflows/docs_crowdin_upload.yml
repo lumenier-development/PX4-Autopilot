@@ -17,6 +17,9 @@ on:
   #    - 'docs/en/**'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   upload-to-crowdin:
     #if: github.event.pull_request.merged == true || github.event_name == 'push'  || github.event_name == 'workflow_dispatch'
@@ -24,7 +27,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: crowdin push
         uses: crowdin/github-action@v2
         with:

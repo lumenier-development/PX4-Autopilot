@@ -134,7 +134,6 @@ px4_add_module(
 	MAIN uavcan
 	STACK_MAIN 4096
 	COMPILE_FLAGS
-		-Wno-format-security # logmessage.hpp
 		#-O0
 		#-DDEBUG_BUILD
 	INCLUDES
@@ -158,6 +157,7 @@ px4_add_module(
 		# Main
 		uavcan_main.cpp
 		uavcan_servers.cpp
+		node_info.cpp
 
 		# Actuators
 		actuators/esc.cpp
@@ -183,10 +183,12 @@ px4_add_module(
 		sensors/safety_button.cpp
 	MODULE_CONFIG
 		module.yaml
+		uavcan_params.yaml
 	DEPENDS
 		px4_uavcan_dsdlc
 
 		button_publisher
+		clock_offset_estimator
 		drivers_rangefinder
 		led
 		mixer_module

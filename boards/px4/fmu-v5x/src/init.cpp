@@ -74,7 +74,6 @@
 #include <px4_platform/gpio.h>
 #include <px4_platform/board_determine_hw_info.h>
 #include <px4_platform/board_dma_alloc.h>
-#include <px4_platform/gpio/mcp23009.hpp>
 
 /****************************************************************************
  * Pre-Processor Definitions
@@ -108,7 +107,7 @@ __EXPORT void board_peripheral_reset(int ms)
 
 	VDD_5V_PERIPH_EN(false);
 	board_control_spi_sensors_power(false, 0xffff);
-	VDD_3V3_SENSORS4_EN(false);
+	VDD_3V3_SENSORS_EN(false);
 
 	bool last = READ_VDD_3V3_SPEKTRUM_POWER_EN();
 	/* Keep Spektum on to discharge rail*/
@@ -123,7 +122,7 @@ __EXPORT void board_peripheral_reset(int ms)
 	/* switch the peripheral rail back on */
 	VDD_3V3_SPEKTRUM_POWER_EN(last);
 	board_control_spi_sensors_power(true, 0xffff);
-	VDD_3V3_SENSORS4_EN(true);
+	VDD_3V3_SENSORS_EN(true);
 	VDD_5V_PERIPH_EN(true);
 
 }
@@ -141,7 +140,12 @@ __EXPORT void board_peripheral_reset(int ms)
  ************************************************************************************/
 __EXPORT void board_on_reset(int status)
 {
-	for (int i = 0; i < DIRECT_PWM_OUTPUT_CHANNELS; ++i) {
+	for (int i = 0; i < DIRECT_PWM_FIRST_CAPTURE_CHANNEL; ++i) {
+		px4_arch_configgpio(io_timer_channel_get_gpio_output(i));
+	}
+
+	/* A PPS or camera output may be wired to a capture channel, so these stay inputs */
+	for (int i = DIRECT_PWM_FIRST_CAPTURE_CHANNEL; i < DIRECT_PWM_OUTPUT_CHANNELS; ++i) {
 		px4_arch_configgpio(PX4_MAKE_GPIO_INPUT(io_timer_channel_get_as_pwm_input(i)));
 	}
 
@@ -218,7 +222,7 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 	VDD_3V3_SD_CARD_EN(true);
 	VDD_5V_PERIPH_EN(true);
 	VDD_5V_HIPOWER_EN(true);
-	VDD_3V3_SENSORS4_EN(true);
+	VDD_3V3_SENSORS_EN(true);
 	VDD_3V3_SPEKTRUM_POWER_EN(true);
 
 	/* Need hrt running before using the ADC */
@@ -279,13 +283,6 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 	}
 
 #endif /* CONFIG_MMCSD */
-
-	ret = mcp23009_register_gpios(3, 0x25);
-
-	if (ret != OK) {
-		led_on(LED_RED);
-		return ret;
-	}
 
 	return OK;
 }

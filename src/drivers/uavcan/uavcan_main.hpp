@@ -45,6 +45,7 @@
 #include <px4_platform_common/px4_config.h>
 #include <px4_platform_common/atomic.h>
 #include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
+#include "node_info.hpp"
 
 #if defined(CONFIG_UAVCAN_OUTPUTS_CONTROLLER)
 #include "actuators/esc.hpp"
@@ -101,7 +102,9 @@
 #include <uORB/Subscription.hpp>
 #include <uORB/SubscriptionInterval.hpp>
 #include <uORB/topics/can_interface_status.h>
+#include <uORB/topics/actuator_armed.h>
 #include <uORB/topics/dronecan_node_status.h>
+#include <uORB/topics/uavcan_firmware_update.h>
 #include <uORB/topics/parameter_update.h>
 #include <uORB/topics/uavcan_parameter_request.h>
 #include <uORB/topics/uavcan_parameter_value.h>
@@ -128,12 +131,13 @@ public:
 		  _node_mutex(node_mutex),
 		  _esc_controller(esc_controller) {}
 
-	bool updateOutputs(uint16_t outputs[MAX_ACTUATORS],
-			   unsigned num_outputs, unsigned num_control_groups_updated) override;
+	bool updateOutputs(float outputs[MAX_ACTUATORS], unsigned num_outputs, unsigned num_control_groups_updated) override;
 
 	void mixerChanged() override;
 
 	MixingOutput &mixingOutput() { return _mixing_output; }
+
+	bool isActuatorTestRunning() const { return _mixing_output.isActuatorTestRunning(); }
 
 protected:
 	void Run() override;
@@ -159,8 +163,7 @@ public:
 		  _node_mutex(node_mutex),
 		  _servo_controller(servo_controller) {}
 
-	bool updateOutputs(uint16_t outputs[MAX_ACTUATORS],
-			   unsigned num_outputs, unsigned num_control_groups_updated) override;
+	bool updateOutputs(float outputs[MAX_ACTUATORS], unsigned num_outputs, unsigned num_control_groups_updated) override;
 
 	MixingOutput &mixingOutput() { return _mixing_output; }
 
@@ -199,7 +202,7 @@ class UavcanNode : public px4::ScheduledWorkItem, public ModuleParams
 	 *  1000000/200
 	 */
 
-	static constexpr unsigned RxQueueLenPerIface	= FramePerMSecond * ScheduleIntervalMs; // At
+	static constexpr unsigned RxQueueLenPerIface	= FramePerMSecond * ScheduleIntervalMs;
 
 public:
 	typedef UAVCAN_DRIVER::CanInitHelper<RxQueueLenPerIface> CanInitHelper;
@@ -291,6 +294,7 @@ private:
 	uavcan::NodeStatusMonitor	_node_status_monitor;
 
 	uavcan::NodeInfoRetriever   _node_info_retriever;
+	NodeInfoPublisher           _node_info_publisher;
 
 	List<IUavcanSensorBridge *>	_sensor_bridges;		///< List of active sensor bridges
 
@@ -318,9 +322,12 @@ private:
 	uORB::SubscriptionInterval	_parameter_update_sub{ORB_ID(parameter_update), 1_s};
 	uORB::Subscription _vcmd_sub{ORB_ID(vehicle_command)};
 	uORB::Subscription _param_request_sub{ORB_ID(uavcan_parameter_request)};
+	uORB::Subscription _actuator_armed_sub{ORB_ID(actuator_armed)};
 
 	uORB::Publication<uavcan_parameter_value_s> _param_response_pub{ORB_ID(uavcan_parameter_value)};
 	uORB::Publication<vehicle_command_ack_s>	_command_ack_pub{ORB_ID(vehicle_command_ack)};
+	uORB::Publication<uavcan_firmware_update_s> _fw_update_pub{ORB_ID(uavcan_firmware_update)};
+	bool _fw_update_pending_last{false};
 
 	orb_advert_t _can_status_pub_handles[UAVCAN_NUM_IFACES] = {nullptr};
 

@@ -95,7 +95,7 @@ __EXPORT void board_peripheral_reset(int ms)
 __EXPORT void board_on_reset(int status)
 {
 	for (int i = 0; i < DIRECT_PWM_OUTPUT_CHANNELS; ++i) {
-		px4_arch_configgpio(PX4_MAKE_GPIO_INPUT(io_timer_channel_get_as_pwm_input(i)));
+		px4_arch_configgpio(io_timer_channel_get_gpio_output(i));
 	}
 
 	/*
@@ -169,6 +169,7 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 	drv_led_start();
 	led_off(LED_RED);
 	led_off(LED_BLUE);
+	led_off(LED_GREEN);
 
 	if (board_hardfault_init(2, true) != 0) {
 		led_on(LED_BLUE);

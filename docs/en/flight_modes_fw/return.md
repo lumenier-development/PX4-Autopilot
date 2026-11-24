@@ -17,17 +17,12 @@ The default type is recommended.
   - Flying vehicles can't switch to this mode without global position.
   - Flying vehicles will failsafe if they lose the position estimate.
 - Mode requires home position is set.
-- Mode prevents arming (vehicle must be armed when switching to this mode).
+- Mode prevents arming (vehicle cannot be armed while this mode is selected).
 - RC control switches can be used to change flight modes on any vehicle.
 - RC stick movement is ignored.
 
 <!-- https://github.com/PX4/PX4-Autopilot/blob/main/src/modules/commander/ModeUtil/mode_requirements.cpp -->
 
-:::
-
-::: warning
-There is a known issue ([PX4-Autopilot#25436](https://github.com/PX4/PX4-Autopilot/issues/25436)) with fixed-wing approaches and landings while in RTL mode.
-Please review the issue and verify in simulation that the behavior you get is safe in an RTL landing scenario (if not, consider using rally points).
 :::
 
 ## Technical Summary

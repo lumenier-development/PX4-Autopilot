@@ -42,6 +42,9 @@
 #pragma once
 
 #include <px4_platform_common/px4_config.h>
+#include <px4_platform_common/atomic.h>
+#include <px4_platform_common/time.h>
+#include <px4_platform_common/Serial.hpp>
 #include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
 #include <lib/drivers/rangefinder/PX4Rangefinder.hpp>
 #include <drivers/drv_hrt.h>
@@ -69,11 +72,14 @@ private:
 	int				collect();
 
 	PX4Rangefinder                  _px4_rangefinder;
+	device::Serial			_uart;
+
+	px4::atomic_bool		_stop_requested{false};
+	px4::atomic_bool		_stopped{false};
 
 	char 				_port[20] {};
 	int         		        _interval{100000};
 	bool				_collect_phase{false};
-	int				_fd{-1};
 	char				_linebuf[10] {};
 	unsigned			_linebuf_index{0};
 	enum LW_PARSE_STATE		_parse_state {LW_PARSE_STATE0_UNSYNC};

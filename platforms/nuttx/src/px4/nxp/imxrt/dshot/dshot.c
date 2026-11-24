@@ -56,14 +56,15 @@
 #define IOMUX_PULL_UP IOMUX_PULL_UP_47K
 #endif
 
-static const uint32_t gcr_decode[32] = {
-	0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-	0x0, 0x9, 0xA, 0xB, 0x0, 0xD, 0xE, 0xF,
-	0x0, 0x0, 0x2, 0x3, 0x0, 0x5, 0x6, 0x7,
-	0x0, 0x0, 0x8, 0x1, 0x0, 0x4, 0xC, 0x0
-};
+// Invalid symbols decode above the 16-bit frame, so they fail validation instead of aliasing a 0x0 nibble
+#define GCR_INVALID 0x10000u
 
-uint32_t erpms[DSHOT_TIMERS];
+static const uint32_t gcr_decode[32] = {
+	GCR_INVALID, GCR_INVALID, GCR_INVALID, GCR_INVALID, GCR_INVALID, GCR_INVALID, GCR_INVALID, GCR_INVALID,
+	GCR_INVALID, 0x9, 0xA, 0xB, GCR_INVALID, 0xD, 0xE, 0xF,
+	GCR_INVALID, GCR_INVALID, 0x2, 0x3, GCR_INVALID, 0x5, 0x6, 0x7,
+	GCR_INVALID, 0x0, 0x8, 0x1, GCR_INVALID, 0x4, 0xC, GCR_INVALID
+};
 
 typedef enum {
 	DSHOT_START = 0,
@@ -321,8 +322,10 @@ static int flexio_irq_handler(int irq, void *context, void *arg)
 }
 
 
-int up_dshot_init(uint32_t channel_mask, unsigned dshot_pwm_freq, bool enable_bidirectional_dshot)
+int up_dshot_init(uint32_t channel_mask, uint32_t bdshot_channel_mask, unsigned dshot_pwm_freq, bool edt_enable)
 {
+	(void)edt_enable; // Not implemented
+
 	/* Calculate dshot timings based on dshot_pwm_freq */
 	dshot_tcmp = 0x2F00 | (((BOARD_FLEXIO_PREQ / (dshot_pwm_freq * 3) / 2) - 1) & 0xFF);
 	dshot_speed = dshot_pwm_freq;
@@ -360,7 +363,7 @@ int up_dshot_init(uint32_t channel_mask, unsigned dshot_pwm_freq, bool enable_bi
 
 			imxrt_config_gpio(timer_io_channels[channel].dshot.pinmux | IOMUX_PULL_UP);
 
-			if (enable_bidirectional_dshot) {
+			if (bdshot_channel_mask & (1 << channel)) {
 				dshot_inst[channel].bdshot = true;
 				dshot_inst[channel].bdshot_training_mask = 0;
 				dshot_inst[channel].bdshot_tcmp_offset = BDSHOT_TCMP_MIN_OFFSET;
@@ -383,7 +386,7 @@ int up_dshot_init(uint32_t channel_mask, unsigned dshot_pwm_freq, bool enable_bi
 	flexio_modifyreg32(IMXRT_FLEXIO_CTRL_OFFSET, 0,
 			   FLEXIO_CTRL_FLEXEN_MASK);
 
-	return channel_mask;
+	return dshot_mask;
 }
 
 void up_bdshot_training(uint32_t channel, uint32_t value)
@@ -468,7 +471,7 @@ void up_bdshot_erpm(void)
 				csum_data = csum_data ^ (csum_data >> 8U);
 				csum_data = csum_data ^ (csum_data >> NIBBLES_SIZE);
 
-				if ((csum_data & 0xFU) != 0xFU) {
+				if (data > 0xFFFFU || (csum_data & 0xFU) != 0xFU) {
 					dshot_inst[channel].crc_error_cnt++;
 
 				} else {
@@ -497,24 +500,26 @@ void up_bdshot_erpm(void)
 }
 
 
-int up_bdshot_num_erpm_ready(void)
+uint16_t up_bdshot_get_ready_mask(void)
 {
-	int num_ready = 0;
-
-	for (unsigned i = 0; i < DSHOT_TIMERS; ++i) {
-		// We only check that data has been received, rather than if it's valid.
-		// This ensures data is published even if one channel has bit errors.
-		if (bdshot_recv_mask & (1 << i)) {
-			++num_ready;
-		}
-	}
-
-	return num_ready;
+	return (uint16_t)bdshot_parsed_recv_mask;
 }
 
+int up_bdshot_num_errors(uint8_t channel)
+{
+	if (channel >= DSHOT_TIMERS) {
+		return 0;
+	}
+
+	return dshot_inst[channel].crc_error_cnt + dshot_inst[channel].frame_error_cnt + dshot_inst[channel].no_response_cnt;
+}
 
 int up_bdshot_get_erpm(uint8_t channel, int *erpm)
 {
+	if (channel >= DSHOT_TIMERS) {
+		return -1;
+	}
+
 	if (bdshot_parsed_recv_mask & (1 << channel)) {
 		*erpm = (int)dshot_inst[channel].erpm;
 		return 0;
@@ -523,13 +528,28 @@ int up_bdshot_get_erpm(uint8_t channel, int *erpm)
 	return -1;
 }
 
-int up_bdshot_channel_status(uint8_t channel)
+int up_bdshot_get_extended_telemetry(uint8_t channel, int type, uint8_t *value)
+{
+	// NOT IMPLEMENTED
+	return -1;
+}
+
+int up_bdshot_channel_capture_supported(uint8_t channel)
+{
+	if (channel >= DSHOT_TIMERS) {
+		return 0;
+	}
+
+	return dshot_inst[channel].init && dshot_inst[channel].bdshot;
+}
+
+int up_bdshot_channel_online(uint8_t channel)
 {
 	if (channel < DSHOT_TIMERS) {
 		return ((dshot_inst[channel].no_response_cnt - dshot_inst[channel].last_no_response_cnt) < BDSHOT_OFFLINE_COUNT);
 	}
 
-	return -1;
+	return 0;
 }
 
 void up_bdshot_status(void)
@@ -538,7 +558,7 @@ void up_bdshot_status(void)
 	for (uint8_t channel = 0; (channel < DSHOT_TIMERS); channel++) {
 
 		if (dshot_inst[channel].init) {
-			PX4_INFO("Channel %i %s Last erpm %i value", channel, up_bdshot_channel_status(channel) ? "online" : "offline",
+			PX4_INFO("Channel %i %s Last erpm %i value", channel, up_bdshot_channel_online(channel) ? "online" : "offline",
 				 dshot_inst[channel].erpm);
 			PX4_INFO("BDSHOT Training done: %s TCMP offset: %d", dshot_inst[channel].bdshot_training_done ? "YES" : "NO",
 				 dshot_inst[channel].bdshot_tcmp_offset);
@@ -601,7 +621,7 @@ uint64_t dshot_expand_data(uint16_t packet)
 * bit 	12		- dshot telemetry enable/disable
 * bits 	13-16	- XOR checksum
 **/
-void dshot_motor_data_set(unsigned channel, uint16_t throttle, bool telemetry)
+void dshot_motor_data_set(uint8_t channel, uint16_t throttle, bool telemetry)
 {
 	if (channel < DSHOT_TIMERS && dshot_inst[channel].init) {
 		uint16_t csum_data;

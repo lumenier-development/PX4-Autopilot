@@ -225,6 +225,10 @@ void CyphalNode::Run()
 	if (_instance && _task_should_exit.load()) {
 		ScheduleClear();
 
+		// The CAN fd belongs to the work queue task group, so close it here
+		// and not in the destructor, which runs in the shell calling stop.
+		_canard_handle.close();
+
 		if (_initialized) {
 			_initialized = false;
 		}
@@ -435,8 +439,7 @@ void CyphalNode::sendPortList()
 	_uavcan_node_port_List_last = now;
 }
 
-bool UavcanMixingInterface::updateOutputs(uint16_t outputs[MAX_ACTUATORS], unsigned num_outputs,
-		unsigned num_control_groups_updated)
+bool UavcanMixingInterface::updateOutputs(float outputs[MAX_ACTUATORS], unsigned num_outputs, unsigned num_control_groups_updated)
 {
 	// Note: This gets called from MixingOutput from within its update() function
 	// Hence, the mutex lock in UavcanMixingInterface::Run() is in effect

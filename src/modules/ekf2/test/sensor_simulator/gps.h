@@ -61,6 +61,7 @@ public:
 	void setVelocity(const Vector3f &vel);
 	void setYaw(const float yaw);
 	void setYawOffset(const float yaw);
+	void setYawAccuracy(const float yaw_acc);
 	void setFixType(const int fix_type);
 	void setNumberOfSatellites(const int num_satellites);
 	void setPdop(const float pdop);
@@ -70,6 +71,8 @@ public:
 
 private:
 	void send(uint64_t time) override;
+
+	static constexpr uint64_t kGpsDelayUs{110000};
 
 	gnssSample _gps_data{};
 	Vector3f _gps_pos_rate{};

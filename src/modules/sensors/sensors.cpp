@@ -43,6 +43,8 @@
 
 #include "sensors.hpp"
 
+ModuleBase::Descriptor Sensors::desc{task_spawn, custom_command, print_usage};
+
 Sensors::Sensors(bool hil_enabled) :
 	ModuleParams(nullptr),
 	ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::nav_and_controllers),
@@ -160,6 +162,9 @@ bool Sensors::init()
 int Sensors::parameters_update()
 {
 	if (_armed) {
+		// in flight only an IMU disable takes effect, the rest is read once disarmed
+		_voted_sensors_update.parametersUpdate(true);
+		_parameter_update_deferred = true;
 		return 0;
 	}
 
@@ -502,7 +507,7 @@ void Sensors::Run()
 			sub.unregisterCallback();
 		}
 
-		exit_and_cleanup();
+		exit_and_cleanup(desc);
 		return;
 	}
 
@@ -515,6 +520,12 @@ void Sensors::Run()
 		if (_vcontrol_mode_sub.copy(&vcontrol_mode)) {
 			_armed = vcontrol_mode.flag_armed;
 		}
+	}
+
+	// parameters that changed in flight were only applied as far as an IMU disable
+	if (!_armed && _parameter_update_deferred) {
+		_parameter_update_deferred = false;
+		parameters_update();
 	}
 
 	// keep adding sensors as long as we are not armed,
@@ -647,8 +658,8 @@ int Sensors::task_spawn(int argc, char *argv[])
 	Sensors *instance = new Sensors(hil_enabled);
 
 	if (instance) {
-		_object.store(instance);
-		_task_id = task_id_is_work_queue;
+		desc.object.store(instance);
+		desc.task_id = task_id_is_work_queue;
 
 		if (instance->init()) {
 			return PX4_OK;
@@ -659,8 +670,8 @@ int Sensors::task_spawn(int argc, char *argv[])
 	}
 
 	delete instance;
-	_object.store(nullptr);
-	_task_id = -1;
+	desc.object.store(nullptr);
+	desc.task_id = -1;
 
 	return PX4_ERROR;
 }
@@ -775,5 +786,5 @@ It runs in its own thread and polls on the currently selected gyro topic.
 
 extern "C" __EXPORT int sensors_main(int argc, char *argv[])
 {
-	return Sensors::main(argc, argv);
+	return ModuleBase::main(Sensors::desc, argc, argv);
 }

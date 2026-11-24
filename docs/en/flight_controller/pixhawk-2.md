@@ -1,17 +1,15 @@
-# Hex Cube Black Flight Controller
+# CubePilot Cube Black Flight Controller
 
-:::warning
+::: warning
 PX4 does not manufacture this (or any) autopilot.
 Contact the [manufacturer](https://cubepilot.org/#/home) for hardware support or compliance issues.
 :::
 
-:::tip
-The [Cube Orange](cubepilot_cube_orange.md) is the successor to this product.
-We recommend however to consider products built on industry standards, such as the [Pixhawk Standards](autopilot_pixhawk_standard.md).
-This flight controller is not following the standard and uses a patented connector.
+::: tip
+The [CubePilot Cube Orange](cubepilot_cube_orange.md) and [CubePilot Cube Orange+](cubepilot_cube_orangeplus.md) are successors to this product.
 :::
 
-The [Hex Cube Black](https://docs.cubepilot.org/user-guides/autopilot/the-cube) flight controller (previously known as Pixhawk 2.1) is a flexible autopilot intended primarily for manufacturers of commercial systems.
+The [CubePilot Cube Black](https://docs.cubepilot.org/user-guides/autopilot/the-cube) flight controller (previously known as Pixhawk 2.1) is a flexible autopilot intended primarily for manufacturers of commercial systems.
 It is based on the [Pixhawk-project](https://pixhawk.org/) **FMUv3** open hardware design and runs PX4 on the [NuttX](https://nuttx.apache.org/) OS.
 
 ![Cube Black](../../assets/flight_controller/cube/cube_black_hero.png)
@@ -26,7 +24,7 @@ Cube includes vibration isolation on two of the IMU's, with a third fixed IMU as
 The manufacturer [Cube User Guide](https://docs.cubepilot.org/user-guides/autopilot/the-cube) contains detailed information, including an overview of the [Differences between Cube Colours](https://docs.cubepilot.org/user-guides/autopilot/the-cube/introduction/specifications).
 :::
 
-:::tip
+::: tip
 This autopilot is [supported](../flight_controller/autopilot_pixhawk_standard.md) by the PX4 maintenance and test teams.
 :::
 
@@ -47,9 +45,7 @@ This autopilot is [supported](../flight_controller/autopilot_pixhawk_standard.md
 - High-power, multi-tone piezo audio indicator
 - microSD card for high-rate logging over extended periods of time
 
-<a id="stores"></a>
-
-## Where to Buy
+## Where to Buy {#store}
 
 [Cube Black](https://www.cubepilot.com/#/reseller/list) (Reseller list)
 
@@ -147,14 +143,14 @@ Board schematics and other documentation can be found here: [The Cube Project](h
 
 ## Building Firmware
 
-:::tip
+::: tip
 Most users will not need to build this firmware!
 It is pre-built and automatically installed by _QGroundControl_ when appropriate hardware is connected.
 :::
 
 To [build PX4](../dev_setup/building_px4.md) for this target:
 
-```
+```sh
 make px4_fmu-v3_default
 ```
 
